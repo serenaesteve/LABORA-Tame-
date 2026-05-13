@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Inscripción – {{ curso.nombre }}</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --azul:#5a7f8f; --azul-d:#3d5f6e; --dorado:#b5a050;
+    --blanco:#ffffff; --gris-f:#f7f7f5; --gris-l:#e8e8e4; --gris-t:#888880; --negro:#1a1a18;
+  }
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'DM Sans',sans-serif;background:var(--gris-f);color:var(--negro);}
+  .header{background:var(--blanco);border-bottom:2px solid var(--gris-l);padding:1rem 2rem;display:flex;align-items:center;justify-content:space-between;box-shadow:0 2px 8px rgba(0,0,0,0.06);}
+  .header img{height:44px;}
+  .header-info{text-align:right;}
+  .header-info .curso-label{font-size:0.7rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--dorado);font-weight:600;}
+  .header-info .curso-name{font-family:'Cormorant Garamond',serif;font-size:1.1rem;color:var(--azul-d);}
+  .wrap{max-width:760px;margin:2rem auto;padding:0 1.5rem 4rem;overflow-x:hidden;}
+  .intro{background:var(--blanco);border:1px solid var(--gris-l);border-left:4px solid var(--dorado);border-radius:10px;padding:1.2rem 1.5rem;margin-bottom:2rem;}
+  .intro p{font-size:0.85rem;line-height:1.6;color:var(--gris-t);}
+  .section{background:var(--blanco);border:1px solid var(--gris-l);border-radius:12px;padding:1.8rem;margin-bottom:1.5rem;}
+  .section-title{font-family:'Cormorant Garamond',serif;font-size:1.25rem;font-weight:600;color:var(--azul-d);border-bottom:1px solid var(--gris-l);padding-bottom:0.7rem;margin-bottom:1.4rem;}
+  .fg{margin-bottom:1.1rem;}
+  .fg label{display:block;font-size:0.78rem;font-weight:500;color:var(--azul-d);margin-bottom:0.3rem;text-transform:uppercase;letter-spacing:0.04em;}
+  .fg input,.fg select,.fg textarea{width:100%;padding:0.6rem 0.9rem;border:1.5px solid var(--gris-l);border-radius:8px;font-family:'DM Sans',sans-serif;font-size:0.9rem;background:var(--blanco);color:var(--negro);transition:border-color 0.2s;}
+  .fg input:focus,.fg select:focus,.fg textarea:focus{outline:none;border-color:var(--azul);box-shadow:0 0 0 3px rgba(90,127,143,0.1);}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:1rem;}
+  .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;}
+  .grid4{display:grid;grid-template-columns:2fr 0.6fr 0.6fr 1.8fr;gap:0.6rem;}
+  .radio-group{display:flex;flex-wrap:wrap;gap:0.5rem;}
+  .radio-group label{display:flex;align-items:center;gap:0.4rem;padding:0.4rem 0.9rem;border-radius:6px;border:1.5px solid var(--gris-l);cursor:pointer;font-size:0.85rem;color:var(--negro);transition:all 0.15s;text-transform:none;letter-spacing:0;font-weight:400;}
+  .radio-group input[type=radio]{accent-color:var(--azul);}
+  .radio-group label:has(input:checked){border-color:var(--azul);background:rgba(90,127,143,0.07);color:var(--azul-d);}
+  .fpo-row,.exp-row{display:grid;gap:0.6rem;margin-bottom:0.6rem;}
+  .fpo-row{grid-template-columns:1fr 70px 70px;}
+  .exp-row{grid-template-columns:1.6fr 1.2fr 60px 60px 1.6fr;}
+  .fpo-row input,.exp-row input{padding:0.5rem 0.7rem;border:1.5px solid var(--gris-l);border-radius:7px;font-family:'DM Sans',sans-serif;font-size:0.85rem;width:100%;min-width:0;}
+  .fpo-header,.exp-header{display:grid;gap:0.6rem;margin-bottom:0.3rem;font-size:0.72rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--gris-t);}
+  .fpo-header{grid-template-columns:1fr 70px 70px;}
+  .exp-header{grid-template-columns:1.6fr 1.2fr 60px 60px 1.6fr;}
+  .submit-btn{display:block;width:100%;padding:1rem;background:var(--azul);color:white;border:none;border-radius:10px;font-family:'DM Sans',sans-serif;font-size:1rem;font-weight:500;cursor:pointer;transition:background 0.2s;margin-top:0.5rem;}
+  .submit-btn:hover{background:var(--azul-d);}
+  .legal{font-size:0.78rem;line-height:1.6;color:var(--gris-t);padding:1.2rem;background:var(--gris-f);border-radius:8px;margin-top:1rem;}
+  .firma{display:flex;justify-content:space-between;align-items:flex-end;margin-top:1.5rem;flex-wrap:wrap;gap:1rem;}
+  .firma-campo{flex:1;border-bottom:1px solid var(--gris-l);height:40px;min-width:150px;}
+  .firma-label{font-size:0.75rem;color:var(--gris-t);margin-top:0.2rem;text-align:center;}
+  footer{text-align:center;padding:2rem;color:var(--gris-t);font-size:0.75rem;}
+  @media(max-width:640px){.grid2,.grid3,.grid4,.fpo-row,.exp-row,.fpo-header,.exp-header{grid-template-columns:1fr !important;}}
+</style>
+</head>
+<body>
+<div class="header">
+  <img src="{{ url_for('static', filename='logo.png') }}" alt="TAME">
+  <div class="header-info">
+    <div class="curso-label">Inscripción · FPO Labora</div>
+    <div class="curso-name">{{ curso.nombre }}</div>
+  </div>
+</div>
+
+<div class="wrap">
+  <div class="intro">
+    <p>Rellene todos los campos con sus datos personales. Esta información es necesaria para tramitar su inscripción en el curso de Formación Profesional para el Empleo subvencionado por Labora.</p>
+  </div>
+
+  {% if errors %}
+  <div style="background:#faeaea;color:#a04040;border:1px solid #e8b8b8;border-radius:8px;padding:1rem 1.2rem;margin-bottom:1.5rem;">
+    <strong>Por favor, corrija los siguientes errores:</strong>
+    <ul style="margin-top:0.5rem;padding-left:1.2rem;">
+      {% for e in errors %}<li style="font-size:0.88rem;margin-top:0.3rem;">{{ e }}</li>{% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+
+  <form method="POST">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <!-- DATOS PERSONALES -->
+    <div class="section">
+      <div class="section-title">Datos Personales</div>
+      <div class="grid2">
+        <div class="fg"><label>Nombre *</label><input type="text" name="nombre" required></div>
+        <div class="fg"><label>Apellidos *</label><input type="text" name="apellidos" required></div>
+      </div>
+      <div class="grid3">
+        <div class="fg"><label>Fecha de nacimiento *</label><input type="date" name="fecha_nacimiento" required></div>
+        <div class="fg"><label>Edad *</label><input type="number" name="edad" required min="16" max="99"></div>
+        <div class="fg"><label>Sexo</label>
+          <div class="radio-group">
+            <label><input type="radio" name="sexo" value="Hombre"> Hombre</label>
+            <label><input type="radio" name="sexo" value="Mujer"> Mujer</label>
+            <label><input type="radio" name="sexo" value="Otro"> Otro</label>
+          </div>
+        </div>
+      </div>
+      <div class="grid2">
+        <div class="fg"><label>DNI/NIE *</label><input type="text" name="dni" required placeholder="12345678A"></div>
+        <div class="fg"><label>Nº Seg. Social *</label><input type="text" name="seg_social" required placeholder="12 dígitos"></div>
+      </div>
+      <div class="fg"><label>Nacionalidad *</label><input type="text" name="nacionalidad" required value="Española"></div>
+      <div class="fg">
+        <label>Domicilio *</label>
+        <div class="grid4">
+          <input type="text" name="domicilio" placeholder="Calle / Avenida / Plaza" required>
+          <input type="text" name="numero" placeholder="Nº">
+          <input type="text" name="puerta" placeholder="Pta.">
+          <input type="text" name="poblacion" placeholder="Población" required>
+        </div>
+      </div>
+      <div class="grid3">
+        <div class="fg"><label>Código postal *</label><input type="text" name="cp" required value="46"></div>
+        <div class="fg"><label>Teléfono</label><input type="tel" name="telefono" required></div>
+        <div class="fg"><label>Tel. emergencias</label><input type="tel" name="telefono_emergencias"></div>
+      </div>
+      <div class="fg"><label>Correo electrónico *</label><input type="email" name="email" required placeholder="para recibir el resultado de la selección"></div>
+    </div>
+
+    <!-- SITUACIÓN LABORAL -->
+    <div class="section">
+      <div class="section-title">Situación Laboral</div>
+      <div class="grid2">
+        <div class="fg"><label>Fecha inscripción en SERVEF/Labora *</label><input type="date" name="fecha_inscripcion_servef" required></div>
+        <div class="fg"><label>Oficina *</label><input type="text" name="oficina_servef" required placeholder="Ej: Valencia-Centro"></div>
+      </div>
+      <div class="fg">
+        <label>Cobra prestaciones</label>
+        <div class="radio-group">
+          <label><input type="radio" name="cobra_prestaciones" value="Sí"> Sí</label>
+          <label><input type="radio" name="cobra_prestaciones" value="No"> No</label>
+        </div>
+      </div>
+      <div class="fg">
+        <label>Situación laboral actual *</label>
+        <div class="radio-group">
+          <label><input type="radio" name="situacion_laboral" value="Busca empleo por primera vez"> Busca empleo por primera vez</label>
+          <label><input type="radio" name="situacion_laboral" value="Sin empleo durante menos de 6 meses"> Sin empleo &lt;6 meses</label>
+          <label><input type="radio" name="situacion_laboral" value="Sin empleo entre 6 y 12 meses"> Sin empleo 6–12 meses</label>
+          <label><input type="radio" name="situacion_laboral" value="Sin empleo mas de 12 meses"> Sin empleo &gt;12 meses</label>
+          <label><input type="radio" name="situacion_laboral" value="Con contrato laboral en vigor"> Con contrato en vigor</label>
+          <label><input type="radio" name="situacion_laboral" value="Otros"> Otros</label>
+        </div>
+      </div>
+    </div>
+
+    <!-- TITULACIÓN -->
+    <div class="section">
+      <div class="section-title">Titulación Oficial</div>
+      <p style="font-size:0.8rem;color:var(--gris-t);margin-bottom:1rem;">Si es seleccionado/a será imprescindible aportarla.</p>
+      <div class="fg">
+        <label>Nivel de estudios *</label>
+        <div class="radio-group">
+          <label><input type="radio" name="titulacion" value="Estudios primarios"> Estudios primarios</label>
+          <label><input type="radio" name="titulacion" value="EGB"> EGB</label>
+          <label><input type="radio" name="titulacion" value="ESO"> ESO</label>
+          <label><input type="radio" name="titulacion" value="FP1 / Grado medio"> FP1 / Grado medio</label>
+          <label><input type="radio" name="titulacion" value="FP2 / Grado superior"> FP2 / Grado superior</label>
+          <label><input type="radio" name="titulacion" value="BUP / Bachillerato"> BUP / Bachillerato</label>
+          <label><input type="radio" name="titulacion" value="Diplomatura"> Diplomatura</label>
+          <label><input type="radio" name="titulacion" value="Licenciatura"> Licenciatura</label>
+          <label><input type="radio" name="titulacion" value="Grado universitario"> Grado universitario</label>
+        </div>
+      </div>
+      <div class="fg"><label>Especialidad / Titulación (si procede)</label><input type="text" name="titulacion_especialidad" placeholder="Indica la especialidad o nombre del título"></div>
+      <div class="grid2">
+        <div class="fg">
+          <label>¿Estudia actualmente?</label>
+          <div class="radio-group">
+            <label><input type="radio" name="estudia_actualmente" value="Sí"> Sí</label>
+            <label><input type="radio" name="estudia_actualmente" value="No"> No</label>
+          </div>
+        </div>
+        <div class="fg"><label>¿Qué estudia?</label><input type="text" name="que_estudia"></div>
+      </div>
+    </div>
+
+    <!-- CURSOS FPO PREVIOS -->
+    <div class="section">
+      <div class="section-title">Otros Cursos FPO / Formación Continua Realizados</div>
+      <div class="fpo-header"><span>Especialidad formativa</span><span>Horas</span><span>Año</span></div>
+      {% for i in range(1,4) %}
+      <div class="fpo-row">
+        <input type="text" name="fpo_esp_{{ i }}" placeholder="Nombre del curso">
+        <input type="number" name="fpo_h_{{ i }}" placeholder="h">
+        <input type="number" name="fpo_a_{{ i }}" placeholder="año">
+      </div>
+      {% endfor %}
+    </div>
+
+    <!-- EXPERIENCIA -->
+    <div class="section">
+      <div class="section-title">Experiencia Profesional</div>
+      <div class="exp-header"><span>Profesión</span><span>Categoría</span><span>Años</span><span>Meses</span><span>Empresa</span></div>
+      {% for i in range(1,4) %}
+      <div class="exp-row">
+        <input type="text"   name="exp_p_{{ i }}" placeholder="Profesión">
+        <input type="text"   name="exp_c_{{ i }}" placeholder="Categoría">
+        <input type="number" name="exp_a_{{ i }}" placeholder="años" min="0" max="50">
+        <input type="number" name="exp_m_{{ i }}" placeholder="meses" min="0" max="11">
+        <input type="text"   name="exp_e_{{ i }}" placeholder="Empresa">
+      </div>
+      {% endfor %}
+    </div>
+
+
+    <!-- CUESTIONARIO GENERAL PRUEBA DE SELECCIÓN -->
+    <div class="section" style="border-left:4px solid var(--azul);">
+      <div class="section-title">Cuestionario General · Prueba de Selección</div>
+      <p style="font-size:0.8rem;color:var(--gris-t);margin-bottom:1.4rem;">Responda con sinceridad. Sus respuestas forman parte del proceso de selección y serán valoradas por el equipo de TAME Formación.</p>
+
+      <div class="fg">
+        <label>1. ¿Cuáles son las razones que te hacen estar interesado/a en la realización de este curso? *</label>
+        <textarea name="razon_interes" rows="4" required placeholder="Explica tus motivos de interés por este curso..."></textarea>
+      </div>
+
+      <div class="fg">
+        <label>2. ¿Te consideras motivado/a para formarte y lograr un empleo en este sector? Indica dos razones a favor o en contra. *</label>
+        <textarea name="razon_motivacion" rows="4" required placeholder="Indica dos razones a favor o en contra..."></textarea>
+      </div>
+
+      <div class="fg">
+        <label>3. ¿Cómo piensas que te puede ayudar a encontrar un empleo este curso? *</label>
+        <textarea name="razon_empleo" rows="4" required placeholder="Explica cómo crees que este curso te ayudará a encontrar empleo..."></textarea>
+      </div>
+
+      <div class="fg">
+        <label>4. Indica, por orden de importancia, qué razones te impedirían completar y finalizar el curso. *</label>
+        <textarea name="razon_impedimentos" rows="4" required placeholder="Lista los posibles impedimentos por orden de importancia..."></textarea>
+      </div>
+
+      <div class="fg">
+        <label>5. Indica qué factores de tu situación personal pueden limitar el aprovechamiento de esta formación. *</label>
+        <textarea name="razon_limitaciones" rows="4" required placeholder="Describe los factores personales que podrían limitar tu aprovechamiento..."></textarea>
+      </div>
+
+      <div class="fg">
+        <label>6. Observaciones</label>
+        <textarea name="observaciones" rows="3" placeholder="Cualquier otra información que consideres relevante..."></textarea>
+      </div>
+    </div>
+
+    <!-- COMPROMISO LABORA -->
+    <div class="section">
+      <div class="section-title">Compromiso con Labora</div>
+      <div class="legal">
+        <p style="font-weight:500;margin-bottom:0.8rem;">Si soy seleccionado/a me comprometo a cumplir con las condiciones que establece LABORA (Servicio Valenciano de Empleo y Formación):</p>
+        <p style="font-weight:500;margin-bottom:0.5rem;">Deberes del alumnado:</p>
+        <ol style="margin-left:1.2rem;line-height:1.8;">
+          <li>No simultanear cursos presenciales de FPE cuando superen las 40 horas semanales, aunque exista compatibilidad horaria.</li>
+          <li>Asistir a las clases de forma regular y continua y seguir con aprovechamiento la acción formativa.</li>
+          <li>Autorizar a LABORA para consultar su vida laboral.</li>
+          <li>Renovar su DARDE en tanto no se les notifique la suspensión.</li>
+        </ol>
+        <p style="margin-top:0.8rem;">Además, en caso de conseguir inserción laboral, remitir copia del contrato a TAME Centro de Formación.</p>
+        <p style="margin-top:0.8rem;font-weight:500;">Son causa de exclusión: falta de aprovechamiento, obstaculización del desarrollo formativo, simultanear cursos presenciales que superen las 40h semanales, no presentar autorización de vida laboral, o incurrir en más de tres faltas no justificadas al mes.</p>
+      </div>
+      <div class="fg" style="margin-top:1rem;">
+        <div class="radio-group">
+          <label style="border-color:var(--azul);"><input type="checkbox" name="acepta_compromiso" value="Si" required style="accent-color:var(--azul);"> He leído y acepto las condiciones de Labora y me comprometo a cumplirlas *</label>
+        </div>
+      </div>
+    </div>
+
+    <!-- SOBRE EL CURSO -->
+    <div class="section">
+      <div class="section-title">Sobre el Curso</div>
+      <div class="fg">
+        <label>¿Desea realizar el curso?</label>
+        <div class="radio-group">
+          <label><input type="radio" name="desea_realizar" value="Sí"> Sí</label>
+          <label><input type="radio" name="desea_realizar" value="No"> No</label>
+        </div>
+      </div>
+      <div class="fg">
+        <label>Motive su respuesta</label>
+        <textarea name="motivacion" rows="4" required placeholder="Explique brevemente sus motivos para realizar este curso..."></textarea>
+      </div>
+    </div>
+
+    <!-- PNL -->
+    <div class="section">
+      <div class="section-title">Datos Adicionales</div>
+      <div class="grid2">
+        <div class="fg">
+          <label>¿Tiene carnet de conducir?</label>
+          <div class="radio-group">
+            <label><input type="radio" name="tiene_carnet" value="Sí"> Sí</label>
+            <label><input type="radio" name="tiene_carnet" value="No"> No</label>
+          </div>
+        </div>
+        <div class="fg">
+          <label>¿Dispone de vehículo propio para desplazamientos?</label>
+          <div class="radio-group">
+            <label><input type="radio" name="tiene_vehiculo" value="Sí"> Sí</label>
+            <label><input type="radio" name="tiene_vehiculo" value="No"> No</label>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- LEGAL -->
+    <div class="section">
+      <div class="section-title">Información y Compromiso</div>
+      <div class="legal">
+        <p>La finalidad de los cursos de FPO es la de aumentar o actualizar la cualificación de los alumnos para que les pueda resultar más fácil la inserción en el mundo laboral. El alumno se compromete con el centro a facilitar el contrato de trabajo tanto durante el desarrollo del curso como una vez finalizado el mismo.</p>
+        <p style="margin-top:0.8rem;"><strong>Responsable:</strong> Mislata Formación, S.L. – NIF B-97.112.726 · Avd. Gregorio Gea 61 bajo 46920 Mislata (Valencia) · tame@tameformacion.com</p>
+        <p style="margin-top:0.8rem;">Los datos se conservarán mientras mantenga relación comercial o durante los años necesarios para cumplir con las obligaciones legales. No se cederán a terceros salvo obligación legal.</p>
+      </div>
+    </div>
+
+
+    {% if preguntas %}
+    <div class="section" style="border-left:4px solid var(--dorado);">
+      <div class="section-title" style="color:var(--dorado);">✦ Prueba de Selección Específica</div>
+      <p style="font-size:0.82rem;color:var(--gris-t);margin-bottom:1.2rem;">Responda a las siguientes preguntas específicas para este curso. Todos los campos son obligatorios.</p>
+      {% for preg in preguntas %}
+      <div class="fg">
+        <label>{{ loop.index }}. {{ preg.label }} *</label>
+        {% if preg.tipo == 'sino' %}
+        <div class="radio-group">
+          <label><input type="radio" name="prueba_{{ loop.index0 }}" value="Sí" required> Sí</label>
+          <label><input type="radio" name="prueba_{{ loop.index0 }}" value="No"> No</label>
+        </div>
+        {% elif preg.tipo == 'multiple' %}
+        <div class="radio-group">
+          {% for opt in preg.opciones %}
+          <label><input type="radio" name="prueba_{{ loop.index0 }}" value="{{ opt }}" {% if loop.first %}required{% endif %}> {{ opt }}</label>
+          {% endfor %}
+        </div>
+        {% else %}
+        <textarea name="prueba_{{ loop.index0 }}" rows="3" required placeholder="Escribe tu respuesta..."></textarea>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <button type="submit" class="submit-btn">Enviar inscripción</button>
+  </form>
+</div>
+<footer>© 2025 TAME Formación · Mislata Formación S.L. · Sistema de Selección FPO</footer>
+
+<script>
+document.querySelector('form').addEventListener('submit', function(e) {
+  const obligatorios = [
+    {name: 'sexo', label: 'Sexo'},
+    {name: 'cobra_prestaciones', label: 'Cobra prestaciones'},
+    {name: 'situacion_laboral', label: 'Situación laboral'},
+    {name: 'titulacion', label: 'Titulación'},
+    {name: 'estudia_actualmente', label: '¿Estudia actualmente?'},
+    {name: 'desea_realizar', label: '¿Desea realizar el curso?'},
+    {name: 'tiene_carnet', label: '¿Tiene carnet de conducir?'},
+    {name: 'tiene_vehiculo', label: '¿Dispone de vehículo?'},
+  ];
+  for (const campo of obligatorios) {
+    const checked = document.querySelector(`input[name="${campo.name}"]:checked`);
+    if (!checked) {
+      e.preventDefault();
+      alert(`Por favor, seleccione una opción en el campo: "${campo.label}"`);
+      const el = document.querySelector(`input[name="${campo.name}"]`);
+      if (el) el.closest('.fg').scrollIntoView({behavior:'smooth', block:'center'});
+      return;
+    }
+  }
+  {% if preguntas %}
+  {% for preg in preguntas %}
+  {% if preg.tipo in ['sino','multiple'] %}
+  {
+    const checked = document.querySelector('input[name="prueba_{{ loop.index0 }}"]:checked');
+    if (!checked) {
+      e.preventDefault();
+      alert('Por favor, responda a la pregunta: "{{ preg.label }}"');
+      document.querySelector('input[name="prueba_{{ loop.index0 }}"]').closest('.fg').scrollIntoView({behavior:'smooth',block:'center'});
+      return;
+    }
+  }
+  {% endif %}
+  {% endfor %}
+  {% endif %}
+});
+</script>
+
+</body>
+</html>

@@ -1,0 +1,236 @@
+{% extends 'base.html' %}
+{% block title %}Editar – {{ alumno.nombre }} {{ alumno.apellidos }}{% endblock %}
+{% block content %}
+<style>
+  .section{background:var(--gris-f);border:1px solid var(--gris-l);border-radius:12px;padding:1.6rem;margin-bottom:1.5rem;}
+  .section-title{font-family:'Cormorant Garamond',serif;font-size:1.2rem;font-weight:600;color:var(--azul-d);border-bottom:1px solid var(--gris-l);padding-bottom:0.6rem;margin-bottom:1.2rem;}
+  .fg{margin-bottom:1rem;}
+  .fg label{display:block;font-size:0.78rem;font-weight:500;color:var(--azul-d);margin-bottom:0.3rem;text-transform:uppercase;letter-spacing:0.04em;}
+  .fg input,.fg select,.fg textarea{width:100%;padding:0.55rem 0.85rem;border:1.5px solid var(--gris-l);border-radius:8px;font-family:'DM Sans',sans-serif;font-size:0.9rem;background:white;color:var(--negro);}
+  .fg input:focus,.fg textarea:focus{outline:none;border-color:var(--azul);box-shadow:0 0 0 3px rgba(90,127,143,0.1);}
+  .g2{display:grid;grid-template-columns:1fr 1fr;gap:1rem;}
+  .g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;}
+  .g4{display:grid;grid-template-columns:2fr 0.6fr 0.6fr 1.8fr;gap:0.6rem;}
+  .rg{display:flex;flex-wrap:wrap;gap:0.5rem;}
+  .rg label{display:flex;align-items:center;gap:0.4rem;padding:0.4rem 0.9rem;border-radius:6px;border:1.5px solid var(--gris-l);cursor:pointer;font-size:0.85rem;text-transform:none;letter-spacing:0;font-weight:400;}
+  .rg label:has(input:checked){border-color:var(--azul);background:rgba(90,127,143,0.07);color:var(--azul-d);}
+  .fpo-row,.exp-row{display:grid;gap:0.6rem;margin-bottom:0.6rem;}
+  .fpo-row{grid-template-columns:1fr 70px 70px;}
+  .exp-row{grid-template-columns:1.6fr 1.2fr 60px 60px 1.6fr;}
+  .fpo-row input,.exp-row input{padding:0.5rem 0.7rem;border:1.5px solid var(--gris-l);border-radius:7px;font-size:0.85rem;width:100%;min-width:0;}
+  .hdr{display:grid;gap:0.6rem;margin-bottom:0.3rem;font-size:0.72rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--gris-t);}
+  .hdr.fpo{grid-template-columns:1fr 70px 70px;}
+  .hdr.exp{grid-template-columns:1.6fr 1.2fr 60px 60px 1.6fr;}
+  @media(max-width:640px){.g2,.g3,.g4,.fpo-row,.exp-row,.hdr{grid-template-columns:1fr !important;}}
+</style>
+
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem;flex-wrap:wrap;gap:0.75rem;">
+  <div>
+    <a href="{{ url_for('ver_alumno', aid=alumno.id) }}" class="btn btn-outline btn-sm" style="margin-bottom:0.5rem;">← Volver a la ficha</a>
+    <h1 class="page-title" style="margin-bottom:0;">Editar: {{ alumno.nombre }} {{ alumno.apellidos }}</h1>
+    <p style="font-size:0.82rem;color:var(--gris-t);margin-top:0.2rem;">{{ alumno.curso_nombre }}</p>
+  </div>
+</div>
+
+<form method="POST" action="{{ url_for('editar_alumno', aid=alumno.id) }}" style="max-width:860px;">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+  <!-- DATOS PERSONALES -->
+  <div class="section">
+    <div class="section-title">Datos Personales</div>
+    <div class="g2">
+      <div class="fg"><label>Nombre *</label><input type="text" name="nombre" value="{{ alumno.nombre }}" required></div>
+      <div class="fg"><label>Apellidos *</label><input type="text" name="apellidos" value="{{ alumno.apellidos }}" required></div>
+    </div>
+    <div class="g3">
+      <div class="fg"><label>Fecha de nacimiento</label><input type="date" name="fecha_nacimiento" value="{{ alumno.fecha_nacimiento or '' }}"></div>
+      <div class="fg"><label>Edad</label><input type="number" name="edad" value="{{ alumno.edad or '' }}" min="16" max="99"></div>
+      <div class="fg"><label>Sexo</label>
+        <div class="rg">
+          {% for v in ['Hombre','Mujer','Otro'] %}
+          <label><input type="radio" name="sexo" value="{{ v }}" {% if alumno.sexo==v %}checked{% endif %}> {{ v }}</label>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+    <div class="g2">
+      <div class="fg"><label>DNI/NIE *</label><input type="text" name="dni" value="{{ alumno.dni or '' }}" required></div>
+      <div class="fg"><label>Nº Seg. Social</label><input type="text" name="seg_social" value="{{ alumno.seg_social or '' }}"></div>
+    </div>
+    <div class="fg"><label>Nacionalidad</label><input type="text" name="nacionalidad" value="{{ alumno.nacionalidad or 'Española' }}"></div>
+    <div class="fg">
+      <label>Domicilio</label>
+      <div class="g4">
+        <input type="text" name="domicilio" value="{{ alumno.domicilio or '' }}" placeholder="Calle / Avenida / Plaza">
+        <input type="text" name="numero"    value="{{ alumno.numero or '' }}"   placeholder="Nº">
+        <input type="text" name="puerta"    value="{{ alumno.puerta or '' }}"   placeholder="Pta.">
+        <input type="text" name="poblacion" value="{{ alumno.poblacion or '' }}" placeholder="Población">
+      </div>
+    </div>
+    <div class="g3">
+      <div class="fg"><label>Código postal</label><input type="text" name="cp" value="{{ alumno.cp or '' }}"></div>
+      <div class="fg"><label>Teléfono</label><input type="tel" name="telefono" value="{{ alumno.telefono or '' }}" required></div>
+      <div class="fg"><label>Tel. emergencias</label><input type="tel" name="telefono_emergencias" value="{{ alumno.telefono_emergencias or '' }}"></div>
+    </div>
+    <div class="fg"><label>Email *</label><input type="email" name="email" value="{{ alumno.email or '' }}" required></div>
+  </div>
+
+  <!-- SITUACIÓN LABORAL -->
+  <div class="section">
+    <div class="section-title">Situación Laboral</div>
+    <div class="g2">
+      <div class="fg"><label>Fecha inscripción SERVEF/Labora</label><input type="date" name="fecha_inscripcion_servef" value="{{ alumno.fecha_inscripcion_servef or '' }}"></div>
+      <div class="fg"><label>Oficina</label><input type="text" name="oficina_servef" value="{{ alumno.oficina_servef or '' }}"></div>
+    </div>
+    <div class="fg"><label>Cobra prestaciones</label>
+      <div class="rg">
+        {% for v in ['Sí','No'] %}
+        <label><input type="radio" name="cobra_prestaciones" value="{{ v }}" {% if alumno.cobra_prestaciones==v %}checked{% endif %}> {{ v }}</label>
+        {% endfor %}
+      </div>
+    </div>
+    <div class="fg"><label>Situación laboral actual</label>
+      <div class="rg">
+        {% for v in ['Busca empleo por primera vez','Sin empleo durante menos de 6 meses','Sin empleo entre 6 y 12 meses','Sin empleo mas de 12 meses','Con contrato laboral en vigor','Otros'] %}
+        <label><input type="radio" name="situacion_laboral" value="{{ v }}" {% if alumno.situacion_laboral==v %}checked{% endif %}> {{ v }}</label>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <!-- TITULACIÓN -->
+  <div class="section">
+    <div class="section-title">Titulación</div>
+    <div class="fg"><label>Nivel de estudios</label>
+      <div class="rg">
+        {% for v in ['Estudios primarios','EGB','ESO','FP1 / Grado medio','FP2 / Grado superior','BUP / Bachillerato','Diplomatura','Licenciatura','Grado universitario'] %}
+        <label><input type="radio" name="titulacion" value="{{ v }}" {% if alumno.titulacion==v %}checked{% endif %}> {{ v }}</label>
+        {% endfor %}
+      </div>
+    </div>
+    <div class="g2">
+      <div class="fg"><label>Especialidad (si procede)</label><input type="text" name="titulacion_especialidad" value="{{ alumno.titulacion_especialidad or '' }}"></div>
+      <div class="fg"><label>¿Estudia actualmente?</label>
+        <div class="rg">
+          {% for v in ['Sí','No'] %}
+          <label><input type="radio" name="estudia_actualmente" value="{{ v }}" {% if alumno.estudia_actualmente==v %}checked{% endif %}> {{ v }}</label>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+    <div class="fg"><label>¿Qué estudia?</label><input type="text" name="que_estudia" value="{{ alumno.que_estudia or '' }}"></div>
+  </div>
+
+  <!-- CURSOS FPO -->
+  <div class="section">
+    <div class="section-title">Cursos FPO anteriores</div>
+    <div class="hdr fpo"><span>Especialidad</span><span>Horas</span><span>Año</span></div>
+    {% for i in range(1,4) %}
+    {% set c = fpo[i-1] if fpo|length >= i else {} %}
+    <div class="fpo-row">
+      <input type="text"   name="fpo_esp_{{ i }}" value="{{ c.get('especialidad','') }}" placeholder="Nombre del curso">
+      <input type="number" name="fpo_h_{{ i }}"   value="{{ c.get('horas','') }}"        placeholder="h">
+      <input type="number" name="fpo_a_{{ i }}"   value="{{ c.get('anyo','') }}"          placeholder="año">
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- EXPERIENCIA -->
+  <div class="section">
+    <div class="section-title">Experiencia Profesional</div>
+    <div class="hdr exp"><span>Profesión</span><span>Categoría</span><span>Años</span><span>Meses</span><span>Empresa</span></div>
+    {% for i in range(1,4) %}
+    {% set e = exp[i-1] if exp|length >= i else {} %}
+    <div class="exp-row">
+      <input type="text"   name="exp_p_{{ i }}" value="{{ e.get('profesion','') }}"  placeholder="Profesión">
+      <input type="text"   name="exp_c_{{ i }}" value="{{ e.get('categoria','') }}"  placeholder="Categoría">
+      <input type="number" name="exp_a_{{ i }}" value="{{ e.get('anios','') }}"      placeholder="años" min="0" max="50">
+      <input type="number" name="exp_m_{{ i }}" value="{{ e.get('meses','') }}"      placeholder="meses" min="0" max="11">
+      <input type="text"   name="exp_e_{{ i }}" value="{{ e.get('empresa','') }}"    placeholder="Empresa">
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- SOBRE EL CURSO -->
+  <div class="section">
+    <div class="section-title">Sobre el Curso</div>
+    <div class="fg"><label>¿Desea realizar el curso?</label>
+      <div class="rg">
+        {% for v in ['Sí','No'] %}
+        <label><input type="radio" name="desea_realizar" value="{{ v }}" {% if alumno.desea_realizar==v %}checked{% endif %}> {{ v }}</label>
+        {% endfor %}
+      </div>
+    </div>
+    <div class="fg"><label>Motivación</label>
+      <textarea name="motivacion" rows="4">{{ alumno.motivacion or '' }}</textarea>
+    </div>
+    <div class="g2">
+      <div class="fg"><label>¿Carnet de conducir?</label>
+        <div class="rg">
+          {% for v in ['Sí','No'] %}
+          <label><input type="radio" name="tiene_carnet" value="{{ v }}" {% if alumno.tiene_carnet==v %}checked{% endif %}> {{ v }}</label>
+          {% endfor %}
+        </div>
+      </div>
+      <div class="fg"><label>¿Vehículo propio?</label>
+        <div class="rg">
+          {% for v in ['Sí','No'] %}
+          <label><input type="radio" name="tiene_vehiculo" value="{{ v }}" {% if alumno.tiene_vehiculo==v %}checked{% endif %}> {{ v }}</label>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CUESTIONARIO -->
+  <div class="section" style="border-left:3px solid var(--azul);">
+    <div class="section-title">Cuestionario General</div>
+    {% for campo, label in [
+      ('razon_interes',    '1. Razones de interés por el curso'),
+      ('razon_motivacion', '2. Motivación (razones a favor/en contra)'),
+      ('razon_empleo',     '3. Cómo le ayudará el curso a encontrar empleo'),
+      ('razon_impedimentos','4. Razones que impedirían finalizar el curso'),
+      ('razon_limitaciones','5. Factores personales que pueden limitar el aprovechamiento'),
+      ('observaciones',    '6. Observaciones'),
+    ] %}
+    <div class="fg">
+      <label>{{ label }}</label>
+      <textarea name="{{ campo }}" rows="3">{{ alumno[campo] or '' }}</textarea>
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- PRUEBA ESPECÍFICA -->
+  {% if preguntas %}
+  <div class="section" style="border-left:3px solid var(--dorado);">
+    <div class="section-title" style="color:var(--dorado);">✦ Prueba de Selección Específica</div>
+    {% for preg in preguntas %}
+    <div class="fg">
+      <label>{{ loop.index }}. {{ preg.label }}</label>
+      {% set resp = respuestas.get(preg.label, '') %}
+      {% if preg.tipo == 'sino' %}
+      <div class="rg">
+        {% for v in ['Sí','No'] %}
+        <label><input type="radio" name="prueba_{{ loop.index0 }}" value="{{ v }}" {% if resp==v %}checked{% endif %}> {{ v }}</label>
+        {% endfor %}
+      </div>
+      {% elif preg.tipo == 'multiple' %}
+      <div class="rg">
+        {% for opt in preg.opciones %}
+        <label><input type="radio" name="prueba_{{ loop.index0 }}" value="{{ opt }}" {% if resp==opt %}checked{% endif %}> {{ opt }}</label>
+        {% endfor %}
+      </div>
+      {% else %}
+      <textarea name="prueba_{{ loop.index0 }}" rows="3">{{ resp }}</textarea>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <div style="display:flex;gap:0.75rem;margin-top:0.5rem;">
+    <button type="submit" class="btn btn-primary">Guardar cambios</button>
+    <a href="{{ url_for('ver_alumno', aid=alumno.id) }}" class="btn btn-outline">Cancelar</a>
+  </div>
+</form>
+{% endblock %}

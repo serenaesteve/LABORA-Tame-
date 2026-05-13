@@ -1,0 +1,62 @@
+{% extends 'base.html' %}
+{% block title %}Búsqueda – TAME{% endblock %}
+{% block content %}
+<h1 class="page-title">Búsqueda global</h1>
+
+<form method="GET" action="{{ url_for('buscar_global') }}"
+      style="display:flex;gap:0.75rem;margin-bottom:2rem;max-width:560px;">
+  <input type="text" name="q" value="{{ q }}" placeholder="Nombre, apellidos, DNI o email…" autofocus
+         style="flex:1;padding:0.65rem 1rem;border:1.5px solid var(--gris-l);border-radius:8px;font-size:0.95rem;">
+  <button type="submit" class="btn btn-primary">Buscar</button>
+</form>
+
+{% if q %}
+  {% if resultados %}
+  <p style="font-size:0.82rem;color:var(--gris-t);margin-bottom:1rem;">
+    {{ resultados|length }} resultado{% if resultados|length != 1 %}s{% endif %} para <strong>"{{ q }}"</strong>
+  </p>
+  <div class="card" style="padding:0;overflow:hidden;">
+    <div class="tabla-wrap">
+    <table class="tabla">
+      <thead>
+        <tr>
+          <th>Alumno</th>
+          <th>DNI</th>
+          <th>Email</th>
+          <th>Curso</th>
+          <th>Estado</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in resultados %}
+        <tr>
+          <td style="font-weight:500;">{{ r.nombre }} {{ r.apellidos }}</td>
+          <td style="font-size:0.82rem;color:var(--gris-t);">{{ r.dni or '–' }}</td>
+          <td style="font-size:0.82rem;color:var(--gris-t);">{{ r.email or '–' }}</td>
+          <td>
+            <a href="{{ url_for('ver_curso', cid=r.curso_id) }}"
+               style="font-size:0.82rem;color:var(--azul);text-decoration:none;">{{ r.curso_nombre }}</a>
+          </td>
+          <td><span class="badge badge-{{ r.estado }}">
+            {% if r.estado=='seleccionado' %}✓ Seleccionado
+            {% elif r.estado=='reserva' %}⟳ Reserva
+            {% elif r.estado=='no_seleccionado' %}✗ No selec.
+            {% else %}○ Pendiente{% endif %}
+          </span></td>
+          <td>
+            <a href="{{ url_for('ver_alumno', aid=r.id) }}" class="btn btn-outline btn-sm">Ver ficha</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    </div>
+  </div>
+  {% else %}
+  <div class="card" style="text-align:center;padding:2.5rem;">
+    <p style="color:var(--gris-t);font-size:1rem;">No se encontraron alumnos para <strong>"{{ q }}"</strong>.</p>
+  </div>
+  {% endif %}
+{% endif %}
+{% endblock %}

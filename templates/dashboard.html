@@ -1,0 +1,102 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard – TAME Selección FPO{% endblock %}
+{% block content %}
+<style>
+  /* Dashboard: tarjetas mínimo más pequeño en móvil */
+  @media (max-width: 640px) {
+    .cursos-grid { grid-template-columns: 1fr !important; }
+    .dash-header { flex-direction: column; align-items: flex-start !important; }
+    .tabs-nav a { padding: 0.45rem 0.9rem; font-size: 0.8rem; }
+  }
+</style>
+<div class="dash-header" style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:1.5rem;flex-wrap:wrap;gap:1rem;">
+  <div>
+    <h1 class="page-title">Selección de Alumnos FPO</h1>
+    <p style="color:var(--gris-t);font-size:0.9rem;">Cursos subvencionados por Labora · TAME Formación Mislata</p>
+  </div>
+  <a href="{{ url_for('nuevo_curso') }}" class="btn btn-gold">+ Nuevo curso</a>
+</div>
+
+<!-- Tabs activos / archivados -->
+<div class="tabs-nav" style="display:flex;gap:0.25rem;margin-bottom:1.5rem;border-bottom:2px solid var(--gris-l);padding-bottom:0;">
+  <a href="{{ url_for('dashboard', tab='activos') }}"
+     style="padding:0.5rem 1.2rem;text-decoration:none;font-size:0.85rem;font-weight:500;border-radius:8px 8px 0 0;
+            {% if tab=='activos' %}background:var(--azul);color:white;{% else %}color:var(--gris-t);{% endif %}">
+    Activos
+  </a>
+  <a href="{{ url_for('dashboard', tab='archivados') }}"
+     style="padding:0.5rem 1.2rem;text-decoration:none;font-size:0.85rem;font-weight:500;border-radius:8px 8px 0 0;
+            {% if tab=='archivados' %}background:var(--azul);color:white;{% else %}color:var(--gris-t);{% endif %}">
+    Archivados
+  </a>
+</div>
+
+{% if not cursos %}
+<div class="card" style="text-align:center;padding:3rem;">
+  <p style="font-family:'Cormorant Garamond',serif;font-size:1.3rem;color:var(--gris-t);">
+    {% if tab=='archivados' %}No hay cursos archivados.{% else %}No hay cursos todavía.{% endif %}
+  </p>
+  {% if tab=='activos' %}
+  <a href="{{ url_for('nuevo_curso') }}" class="btn btn-primary" style="margin-top:1rem;">Crear el primer curso</a>
+  {% endif %}
+</div>
+{% else %}
+<div class="cursos-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:1.5rem;">
+  {% for c in cursos %}
+  <div class="card" style="position:relative;">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1rem;">
+      <div>
+        <div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--dorado);font-weight:600;margin-bottom:0.2rem;">{{ c.codigo or 'FPO' }}</div>
+        <h2 style="font-family:'Cormorant Garamond',serif;font-size:1.3rem;color:var(--azul-d);">{{ c.nombre }}</h2>
+      </div>
+      <span style="font-size:1.6rem;font-family:'Cormorant Garamond',serif;font-weight:700;color:var(--azul-d);">{{ c.total }}</span>
+    </div>
+    {% if c.fecha_inicio %}
+    <div style="font-size:0.8rem;color:var(--gris-t);margin-bottom:1rem;">
+      📅 {{ c.fecha_inicio }} {% if c.fecha_fin %}→ {{ c.fecha_fin }}{% endif %}
+      &nbsp;·&nbsp; {{ c.plazas }} plazas
+    </div>
+    {% endif %}
+    <!-- Aviso plazas llenas -->
+    {% if (c.seleccionados or 0) >= (c.plazas or 0) and (c.total or 0) > 0 %}
+    <div style="font-size:0.75rem;color:var(--verde);font-weight:600;margin-bottom:0.7rem;">✓ Plazas cubiertas</div>
+    {% endif %}
+    <div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:1.2rem;">
+      {% if c.seleccionados %}<span class="badge badge-seleccionado">✓ {{ c.seleccionados }} sel.</span>{% endif %}
+      {% if c.reservas %}<span class="badge badge-reserva">⟳ {{ c.reservas }} res.</span>{% endif %}
+      {% if c.pendientes %}<span class="badge badge-pendiente">○ {{ c.pendientes }} pend.</span>{% endif %}
+      {% if c.no_seleccionados %}<span class="badge badge-no_seleccionado">✗ {{ c.no_seleccionados }} no sel.</span>{% endif %}
+    </div>
+    <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+      {% if tab == 'activos' %}
+        <a href="{{ url_for('ver_curso', cid=c.id) }}" class="btn btn-primary btn-sm">Ver alumnos</a>
+        <a href="{{ url_for('inscripcion', cid=c.id) }}" class="btn btn-outline btn-sm" target="_blank">Formulario</a>
+        <form method="POST" action="{{ url_for('duplicar_curso', cid=c.id) }}" style="display:inline;">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="btn btn-outline btn-sm" title="Duplicar curso">⎘</button>
+        </form>
+        <form method="POST" action="{{ url_for('archivar_curso', cid=c.id) }}" style="display:inline;" onsubmit="return confirm('¿Archivar este curso?')">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="btn btn-outline btn-sm" title="Archivar">📁</button>
+        </form>
+        <form method="POST" action="{{ url_for('eliminar_curso', cid=c.id) }}" style="display:inline;" onsubmit="return confirm('¿Eliminar curso y todos sus alumnos?')">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="btn btn-danger btn-sm">Eliminar</button>
+        </form>
+      {% else %}
+        <a href="{{ url_for('ver_curso', cid=c.id) }}" class="btn btn-outline btn-sm">Ver alumnos</a>
+        <form method="POST" action="{{ url_for('restaurar_curso', cid=c.id) }}" style="display:inline;">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="btn btn-primary btn-sm">Restaurar</button>
+        </form>
+        <form method="POST" action="{{ url_for('eliminar_curso', cid=c.id) }}" style="display:inline;" onsubmit="return confirm('¿Eliminar curso y todos sus alumnos?')">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="btn btn-danger btn-sm">Eliminar</button>
+        </form>
+      {% endif %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+{% endblock %}

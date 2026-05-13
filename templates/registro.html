@@ -1,0 +1,42 @@
+{% extends 'base.html' %}
+{% block title %}Registro – TAME Selección FPO{% endblock %}
+{% block content %}
+<style>
+  body { background: var(--gris-f) !important; }
+  .login-wrap { min-height: calc(100vh - 80px); display: flex; align-items: center; justify-content: center; }
+  .login-box { background: var(--blanco); border: 1px solid var(--gris-l); border-radius: 16px; padding: 2.5rem; width: 100%; max-width: 420px; box-shadow: 0 8px 32px rgba(0,0,0,0.08); }
+  .login-logo { text-align: center; margin-bottom: 2rem; }
+  .login-logo img { height: 52px; }
+  .login-title { font-family: 'Cormorant Garamond', serif; font-size: 1.6rem; color: var(--azul-d); text-align: center; margin-bottom: 0.3rem; }
+  .login-sub { font-size: 0.82rem; color: var(--gris-t); text-align: center; margin-bottom: 2rem; }
+  .login-footer { text-align: center; margin-top: 1.5rem; font-size: 0.82rem; color: var(--gris-t); }
+  .login-footer a { color: var(--azul); text-decoration: none; }
+</style>
+<div class="login-wrap">
+  <div class="login-box">
+    <div class="login-logo">
+      <img src="{{ url_for('static', filename='logo.png') }}" alt="TAME">
+    </div>
+    <div class="login-title">Crear cuenta</div>
+    <div class="login-sub">Solo para personal de TAME Formación</div>
+    {% if error %}<div class="alert alert-error">{{ error }}</div>{% endif %}
+    <form method="POST">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="form-group">
+        <label>Nombre completo</label>
+        <input type="text" name="nombre" placeholder="Tu nombre" required>
+      </div>
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" name="email" placeholder="tu@tameformacion.com" required>
+      </div>
+      <div class="form-group">
+        <label>Contraseña</label>
+        <input type="password" name="password" placeholder="Mínimo 6 caracteres" required>
+      </div>
+      <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center;padding:0.75rem;">Crear cuenta</button>
+    </form>
+    <div class="login-footer">¿Ya tienes cuenta? <a href="{{ url_for('login') }}">Iniciar sesión</a></div>
+  </div>
+</div>
+{% endblock %}

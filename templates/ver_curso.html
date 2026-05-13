@@ -1,0 +1,326 @@
+{% extends 'base.html' %}
+{% block title %}{{ curso.nombre }} – TAME{% endblock %}
+{% block content %}
+<style>
+  @media (max-width: 640px) {
+    .curso-acciones { flex-direction: column; align-items: stretch !important; }
+    .curso-acciones .btn { justify-content: center; }
+    .filtros-bar { flex-direction: column; }
+    .filtros-bar input, .filtros-bar select { width: 100%; }
+    /* Ocultar columnas menos críticas en móvil */
+    .col-dni, .col-sit { display: none; }
+    /* Tabla: cards en móvil */
+    .tabla thead { display: none; }
+    .tabla, .tabla tbody, .tabla tr, .tabla td { display: block; width: 100%; }
+    .tabla tr { border-bottom: 2px solid var(--gris-l); padding: 0.75rem 0; }
+    .tabla td { border-bottom: none; padding: 0.2rem 1rem; }
+    .tabla td.rank-pos { font-size: 0.75rem; color: var(--gris-t); padding-bottom: 0; }
+    .pag-nums { display: none; }
+  }
+  @media (max-width: 900px) {
+    .col-sit { display: none; }
+  }
+</style>
+
+<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:2rem;flex-wrap:wrap;gap:1rem;">
+  <div>
+    <a href="{{ url_for('dashboard') }}" class="btn btn-outline btn-sm" style="margin-bottom:1rem;">← Dashboard</a>
+    <div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--dorado);font-weight:600;">{{ curso.codigo or 'FPO' }}</div>
+    <h1 class="page-title" style="margin-bottom:0.3rem;">{{ curso.nombre }}</h1>
+    {% if curso.fecha_inicio %}
+    <p style="color:var(--gris-t);font-size:0.85rem;">📅 {{ curso.fecha_inicio }}{% if curso.fecha_fin %} → {{ curso.fecha_fin }}{% endif %} · {{ curso.plazas }} plazas</p>
+    {% endif %}
+  </div>
+  <div class="curso-acciones" style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center;">
+    <a href="{{ url_for('exportar_excel', cid=curso.id) }}" class="btn btn-outline btn-sm">⬇ Excel</a>
+    <a href="{{ url_for('exportar_csv', cid=curso.id) }}" class="btn btn-outline btn-sm">⬇ CSV</a>
+    <button class="btn btn-outline btn-sm" onclick="document.getElementById('modal-qr').style.display='flex'">📲 QR</button>
+    <form method="POST" action="{{ url_for('toggle_inscripciones', cid=curso.id) }}" style="display:inline;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      {% if curso.inscripciones_abiertas %}
+      <button class="btn btn-outline btn-sm" style="border-color:var(--verde);color:var(--verde);" title="Las inscripciones están abiertas. Pulsa para cerrarlas.">🟢 Abiertas</button>
+      {% else %}
+      <button class="btn btn-outline btn-sm" style="border-color:var(--rojo);color:var(--rojo);" title="Las inscripciones están cerradas. Pulsa para abrirlas.">🔴 Cerradas</button>
+      {% endif %}
+    </form>
+    <button class="btn btn-gold btn-sm" onclick="lanzarIA()" id="btn-ia">✦ Análisis IA</button>
+  </div>
+</div>
+
+<!-- Aviso plazas llenas -->
+{% if plazas_llenas %}
+<div class="alert alert-success" style="margin-bottom:1.5rem;">
+  ✓ Las {{ curso.plazas }} plazas están cubiertas con candidatos seleccionados.
+</div>
+{% endif %}
+
+{% if not curso.inscripciones_abiertas %}
+<div class="alert" style="background:#faeaea;color:var(--rojo);border:1px solid #e8b8b8;margin-bottom:1.5rem;">
+  🔴 El formulario de inscripción está <strong>cerrado</strong>. Los alumnos verán un mensaje de "Plazo cerrado".
+</div>
+{% endif %}
+
+<!-- Stats -->
+<div class="stats-row">
+  <div class="stat-box"><div class="stat-num">{{ stats.total or 0 }}</div><div class="stat-label">Total inscritos</div></div>
+  <div class="stat-box" style="border-top:3px solid var(--verde);"><div class="stat-num" style="color:var(--verde);">{{ stats.seleccionados or 0 }}</div><div class="stat-label">Seleccionados / {{ curso.plazas }}</div></div>
+  <div class="stat-box" style="border-top:3px solid var(--naranja);"><div class="stat-num" style="color:var(--naranja);">{{ stats.reservas or 0 }}</div><div class="stat-label">Reserva</div></div>
+  <div class="stat-box" style="border-top:3px solid var(--gris-t);"><div class="stat-num" style="color:var(--gris-t);">{{ stats.pendientes or 0 }}</div><div class="stat-label">Pendientes</div></div>
+  <div class="stat-box" style="border-top:3px solid var(--rojo);"><div class="stat-num" style="color:var(--rojo);">{{ stats.no_sel or 0 }}</div><div class="stat-label">No sel.</div></div>
+</div>
+
+<!-- Notificaciones IA -->
+<div id="ia-msg" style="display:none;" class="alert alert-success">✦ Análisis IA completado. Actualizando…</div>
+<div id="ia-err" style="display:none;" class="alert alert-error"></div>
+
+<!-- Buscador y filtros -->
+<form method="GET" class="filtros-bar" style="display:flex;gap:0.75rem;flex-wrap:wrap;margin-bottom:1.5rem;align-items:flex-end;">
+  <div style="flex:1;min-width:200px;">
+    <input type="text" name="q" value="{{ q }}" placeholder="Buscar por nombre, apellidos, DNI o email…"
+           style="width:100%;padding:0.6rem 0.9rem;border:1.5px solid var(--gris-l);border-radius:8px;font-size:0.9rem;">
+  </div>
+  <div>
+    <select name="estado" style="padding:0.6rem 0.9rem;border:1.5px solid var(--gris-l);border-radius:8px;font-size:0.88rem;">
+      <option value="">Todos los estados</option>
+      <option value="pendiente"       {% if estado_filtro=='pendiente' %}selected{% endif %}>Pendiente</option>
+      <option value="seleccionado"    {% if estado_filtro=='seleccionado' %}selected{% endif %}>Seleccionado</option>
+      <option value="reserva"         {% if estado_filtro=='reserva' %}selected{% endif %}>Reserva</option>
+      <option value="no_seleccionado" {% if estado_filtro=='no_seleccionado' %}selected{% endif %}>No seleccionado</option>
+    </select>
+  </div>
+  <button type="submit" class="btn btn-primary btn-sm">Filtrar</button>
+  {% if q or estado_filtro %}
+  <a href="{{ url_for('ver_curso', cid=curso.id) }}" class="btn btn-outline btn-sm">Limpiar</a>
+  {% endif %}
+</form>
+
+{% if not alumnos and not q and not estado_filtro %}
+<div class="card" style="text-align:center;padding:3rem;">
+  <p style="font-family:'Cormorant Garamond',serif;font-size:1.2rem;color:var(--gris-t);">Aún no hay alumnos inscritos.</p>
+  <p style="font-size:0.85rem;color:var(--gris-t);margin-top:0.5rem;">Comparte el enlace del formulario para recibir inscripciones.</p>
+  <a href="{{ inscripcion_url }}" class="btn btn-primary" style="margin-top:1rem;" target="_blank">Abrir formulario de inscripción</a>
+</div>
+{% elif not alumnos %}
+<div class="card" style="text-align:center;padding:2rem;">
+  <p style="color:var(--gris-t);">No se encontraron resultados para tu búsqueda.</p>
+</div>
+{% else %}
+<!-- Info resultados + acción masiva -->
+<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.75rem;margin-bottom:0.75rem;">
+  <div style="font-size:0.8rem;color:var(--gris-t);">
+    Mostrando {{ alumnos|length }} de {{ total_rows }} alumno{% if total_rows != 1 %}s{% endif %}
+    {% if total_pags > 1 %} · Página {{ page }} de {{ total_pags }}{% endif %}
+  </div>
+  <div id="accion-masiva" style="display:none;align-items:center;gap:0.5rem;background:var(--azul-d);color:white;padding:0.4rem 0.9rem;border-radius:8px;font-size:0.83rem;">
+    <span id="sel-count">0</span> seleccionados —
+    <form method="POST" action="{{ url_for('estado_masivo', cid=curso.id) }}"
+          id="form-masivo" style="display:flex;gap:0.4rem;align-items:center;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <select name="nuevo_estado" style="padding:0.3rem 0.5rem;border-radius:6px;font-size:0.82rem;border:none;">
+        <option value="seleccionado">✓ Seleccionado</option>
+        <option value="reserva">⟳ Reserva</option>
+        <option value="pendiente">○ Pendiente</option>
+        <option value="no_seleccionado">✗ No selec.</option>
+      </select>
+      <button type="submit" style="background:white;color:var(--azul-d);border:none;padding:0.3rem 0.7rem;border-radius:6px;cursor:pointer;font-weight:600;font-size:0.82rem;">Aplicar</button>
+    </form>
+  </div>
+</div>
+
+<div class="card tabla-wrap" style="padding:0;overflow:hidden;">
+  <table class="tabla">
+    <thead>
+      <tr>
+        <th style="width:36px;"><input type="checkbox" id="sel-todos" title="Seleccionar todos" style="cursor:pointer;accent-color:var(--azul);width:16px;height:16px;"></th>
+        <th style="width:40px;">#</th>
+        <th>Alumno</th>
+        <th class="col-dni">DNI</th>
+        <th class="col-sit">Situación laboral</th>
+        <th style="text-align:center;">Punt. IA</th>
+        <th>Estado</th>
+        <th>Acción</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for a in alumnos %}
+      <tr id="fila-{{ a.id }}">
+        <td style="text-align:center;">
+          <input type="checkbox" class="sel-alumno" value="{{ a.id }}"
+                 style="cursor:pointer;accent-color:var(--azul);width:16px;height:16px;">
+        </td>
+        <td class="rank-pos">
+          {% if a.puntuacion_ia %}{{ (page-1)*25 + loop.index }}{% else %}<span style="color:var(--gris-l);">–</span>{% endif %}
+        </td>
+        <td>
+          <a href="{{ url_for('ver_alumno', aid=a.id) }}" style="text-decoration:none;">
+            <div style="font-weight:500;color:var(--azul-d);">{{ a.nombre }} {{ a.apellidos }}</div>
+            <div style="font-size:0.75rem;color:var(--gris-t);">{{ a.email or '' }}</div>
+          </a>
+          {% if a.notas %}<div style="font-size:0.72rem;color:var(--dorado);margin-top:0.2rem;">📌 {{ a.notas[:60] }}{% if a.notas|length > 60 %}…{% endif %}</div>{% endif %}
+        </td>
+        <td class="col-dni" style="font-size:0.82rem;color:var(--gris-t);">{{ a.dni or '–' }}</td>
+        <td class="col-sit" style="font-size:0.8rem;">{{ a.situacion_laboral or '–' }}</td>
+        <td style="text-align:center;">
+          {% if a.puntuacion_ia %}
+            <div class="score-circle {% if a.puntuacion_ia >= 7 %}high{% elif a.puntuacion_ia >= 5 %}mid{% else %}low{% endif %}">
+              {{ "%.1f"|format(a.puntuacion_ia) }}
+            </div>
+          {% else %}
+            <div class="score-circle">–</div>
+          {% endif %}
+        </td>
+        <td>
+          <span class="badge badge-{{ a.estado }}" id="badge-{{ a.id }}">
+            {% if a.estado == 'seleccionado' %}✓ Seleccionado
+            {% elif a.estado == 'reserva' %}⟳ Reserva
+            {% elif a.estado == 'no_seleccionado' %}✗ No selec.
+            {% else %}○ Pendiente{% endif %}
+          </span>
+        </td>
+        <td>
+          <select class="estado-select" data-id="{{ a.id }}"
+                  style="font-size:0.78rem;padding:0.3rem 0.5rem;border:1px solid var(--gris-l);border-radius:6px;cursor:pointer;">
+            <option value="pendiente"       {% if a.estado=='pendiente' %}selected{% endif %}>Pendiente</option>
+            <option value="seleccionado"    {% if a.estado=='seleccionado' %}selected{% endif %}>Seleccionado</option>
+            <option value="reserva"         {% if a.estado=='reserva' %}selected{% endif %}>Reserva</option>
+            <option value="no_seleccionado" {% if a.estado=='no_seleccionado' %}selected{% endif %}>No selec.</option>
+          </select>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<!-- Paginación -->
+{% if total_pags > 1 %}
+<div style="display:flex;justify-content:center;align-items:center;gap:0.4rem;margin-top:1.5rem;flex-wrap:wrap;">
+  {% if page > 1 %}
+  <a href="{{ url_for('ver_curso', cid=curso.id, q=q, estado=estado_filtro, page=page-1) }}" class="btn btn-outline btn-sm">← Anterior</a>
+  {% endif %}
+  <span class="pag-nums" style="display:flex;gap:0.4rem;flex-wrap:wrap;justify-content:center;">
+  {% for p in range(1, total_pags+1) %}
+    {% if p == page %}
+    <span class="btn btn-primary btn-sm" style="cursor:default;">{{ p }}</span>
+    {% elif p == 1 or p == total_pags or (p >= page-2 and p <= page+2) %}
+    <a href="{{ url_for('ver_curso', cid=curso.id, q=q, estado=estado_filtro, page=p) }}" class="btn btn-outline btn-sm">{{ p }}</a>
+    {% elif p == 2 or p == total_pags-1 %}
+    <span style="padding:0.35rem 0.4rem;font-size:0.78rem;color:var(--gris-t);">…</span>
+    {% endif %}
+  {% endfor %}
+  </span>
+  <span style="font-size:0.78rem;color:var(--gris-t);">{{ page }}/{{ total_pags }}</span>
+  {% if page < total_pags %}
+  <a href="{{ url_for('ver_curso', cid=curso.id, q=q, estado=estado_filtro, page=page+1) }}" class="btn btn-outline btn-sm">Siguiente →</a>
+  {% endif %}
+</div>
+{% endif %}
+{% endif %}
+
+<!-- Modal QR -->
+<div id="modal-qr" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:999;align-items:center;justify-content:center;">
+  <div style="background:white;border-radius:16px;padding:2rem;max-width:360px;width:90%;text-align:center;box-shadow:0 8px 40px rgba(0,0,0,0.2);">
+    <div style="font-family:'Cormorant Garamond',serif;font-size:1.3rem;font-weight:600;color:var(--azul-d);margin-bottom:0.5rem;">Formulario de inscripción</div>
+    <p style="font-size:0.82rem;color:var(--gris-t);margin-bottom:1.2rem;">Escanea el QR o comparte el enlace</p>
+    <img src="data:image/png;base64,{{ qr_b64 }}" alt="QR" style="width:200px;height:200px;border:1px solid var(--gris-l);border-radius:8px;margin-bottom:1rem;">
+    <div style="word-break:break-all;font-size:0.75rem;color:var(--gris-t);background:var(--gris-f);padding:0.6rem;border-radius:6px;margin-bottom:1.2rem;">
+      {{ inscripcion_url }}
+    </div>
+    <div style="display:flex;gap:0.5rem;justify-content:center;">
+      <button onclick="navigator.clipboard.writeText('{{ inscripcion_url }}').then(()=>alert('¡Enlace copiado!'))" class="btn btn-outline btn-sm">Copiar enlace</button>
+      <button onclick="document.getElementById('modal-qr').style.display='none'" class="btn btn-primary btn-sm">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+
+document.querySelectorAll('.estado-select').forEach(sel => {
+  sel.addEventListener('change', async function() {
+    const id     = this.dataset.id;
+    const estado = this.value;
+    const res    = await fetch(`/alumno/${id}/estado`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrfToken},
+      body: JSON.stringify({estado})
+    });
+    if (res.ok) {
+      const data = await res.json();
+      const badge  = document.getElementById('badge-' + id);
+      const labels = {
+        'pendiente': '○ Pendiente', 'seleccionado': '✓ Seleccionado',
+        'reserva': '⟳ Reserva', 'no_seleccionado': '✗ No selec.'
+      };
+      badge.className  = 'badge badge-' + estado;
+      badge.textContent = labels[estado];
+      if (data.aviso === 'plazas_llenas') {
+        alert('⚠️ Las plazas del curso están cubiertas.');
+      }
+    }
+  });
+});
+
+async function lanzarIA() {
+  const btn = document.getElementById('btn-ia');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Analizando…';
+  document.getElementById('ia-msg').style.display = 'none';
+  document.getElementById('ia-err').style.display = 'none';
+  try {
+    const res  = await fetch('/cursos/{{ curso.id }}/ranking-ia', {
+      method: 'POST',
+      headers: {'X-CSRFToken': csrfToken}
+    });
+    const data = await res.json();
+    if (data.ok) {
+      document.getElementById('ia-msg').style.display = 'block';
+      setTimeout(() => location.reload(), 1500);
+    } else {
+      document.getElementById('ia-err').textContent = 'Error: ' + data.error;
+      document.getElementById('ia-err').style.display = 'block';
+    }
+  } catch(e) {
+    document.getElementById('ia-err').textContent = 'Error de conexión con Ollama. ¿Está ejecutándose?';
+    document.getElementById('ia-err').style.display = 'block';
+  }
+  btn.disabled = false;
+  btn.innerHTML = '✦ Análisis IA';
+}
+
+document.getElementById('modal-qr').addEventListener('click', function(e) {
+  if (e.target === this) this.style.display = 'none';
+});
+
+// ── Selección masiva ──────────────────────────────────────────────────────────
+const selTodos  = document.getElementById('sel-todos');
+const barMasiva = document.getElementById('accion-masiva');
+const formMasivo = document.getElementById('form-masivo');
+const selCount  = document.getElementById('sel-count');
+
+function actualizarBarra() {
+  const marcados = document.querySelectorAll('.sel-alumno:checked');
+  if (marcados.length > 0) {
+    selCount.textContent = marcados.length;
+    barMasiva.style.display = 'flex';
+    // Sincronizar ids al form
+    document.querySelectorAll('input[name="alumno_ids"]').forEach(e => e.remove());
+    marcados.forEach(cb => {
+      const h = document.createElement('input');
+      h.type = 'hidden'; h.name = 'alumno_ids'; h.value = cb.value;
+      formMasivo.appendChild(h);
+    });
+  } else {
+    barMasiva.style.display = 'none';
+  }
+}
+
+selTodos?.addEventListener('change', function() {
+  document.querySelectorAll('.sel-alumno').forEach(cb => cb.checked = this.checked);
+  actualizarBarra();
+});
+document.querySelectorAll('.sel-alumno').forEach(cb =>
+  cb.addEventListener('change', actualizarBarra)
+);
+</script>
+{% endblock %}

@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="csrf-token" content="{{ csrf_token() }}">
+<title>{% block title %}TAME – Selección FPO{% endblock %}</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --azul:    #5a7f8f;
+    --azul-d:  #3d5f6e;
+    --dorado:  #b5a050;
+    --dorado-l:#d4bc6a;
+    --blanco:  #ffffff;
+    --gris-f:  #f7f7f5;
+    --gris-l:  #e8e8e4;
+    --gris-t:  #888880;
+    --negro:   #1a1a18;
+    --verde:   #4a7c59;
+    --rojo:    #a04040;
+    --naranja: #b07030;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'DM Sans', sans-serif; background: var(--blanco); color: var(--negro); min-height: 100vh; }
+
+  /* NAV */
+  nav {
+    background: var(--blanco);
+    border-bottom: 2px solid var(--gris-l);
+    padding: 0 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 70px;
+    position: sticky; top: 0; z-index: 100;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+  }
+  .nav-logo img { height: 44px; }
+  .nav-links { display: flex; align-items: center; gap: 0.5rem; }
+  .nav-links a {
+    text-decoration: none; color: var(--azul-d);
+    font-size: 0.85rem; font-weight: 500;
+    padding: 0.4rem 0.9rem; border-radius: 6px;
+    transition: background 0.2s, color 0.2s;
+  }
+  .nav-links a:hover { background: var(--gris-f); }
+  .nav-user {
+    font-size: 0.8rem; color: var(--gris-t);
+    margin-right: 1rem;
+  }
+  .nav-links a.btn-nav {
+    background: var(--azul); color: white;
+    font-weight: 500;
+  }
+  .nav-links a.btn-nav:hover { background: var(--azul-d); }
+
+  /* MAIN */
+  main { max-width: 1200px; margin: 0 auto; padding: 2.5rem 2rem; }
+
+  /* HEADING */
+  .page-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 2.2rem; font-weight: 600;
+    color: var(--azul-d);
+    border-bottom: 2px solid var(--dorado);
+    padding-bottom: 0.5rem;
+    margin-bottom: 2rem;
+    display: inline-block;
+  }
+  .page-subtitle {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 1.4rem; color: var(--gris-t);
+    margin-bottom: 2rem;
+  }
+
+  /* CARDS */
+  .card {
+    background: var(--blanco);
+    border: 1px solid var(--gris-l);
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    transition: box-shadow 0.2s, transform 0.2s;
+  }
+  .card:hover { box-shadow: 0 6px 20px rgba(0,0,0,0.08); transform: translateY(-2px); }
+
+  /* BUTTONS */
+  .btn {
+    display: inline-flex; align-items: center; gap: 0.4rem;
+    padding: 0.55rem 1.2rem; border-radius: 8px;
+    border: none; cursor: pointer;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.85rem; font-weight: 500;
+    text-decoration: none; transition: all 0.2s;
+  }
+  .btn-primary { background: var(--azul); color: white; }
+  .btn-primary:hover { background: var(--azul-d); }
+  .btn-gold { background: var(--dorado); color: white; }
+  .btn-gold:hover { background: #9a8840; }
+  .btn-outline { background: transparent; border: 1.5px solid var(--azul); color: var(--azul); }
+  .btn-outline:hover { background: var(--azul); color: white; }
+  .btn-danger { background: var(--rojo); color: white; }
+  .btn-danger:hover { background: #8a3030; }
+  .btn-sm { padding: 0.35rem 0.8rem; font-size: 0.78rem; }
+
+  /* BADGES ESTADO */
+  .badge {
+    display: inline-flex; align-items: center; gap: 0.3rem;
+    padding: 0.25rem 0.7rem; border-radius: 20px;
+    font-size: 0.75rem; font-weight: 500; white-space: nowrap;
+  }
+  .badge-pendiente    { background: #f0f0ea; color: #666; border: 1px solid #ddd; }
+  .badge-seleccionado { background: #e8f4ec; color: var(--verde); border: 1px solid #b8ddc4; }
+  .badge-reserva      { background: #fef6e4; color: var(--naranja); border: 1px solid #f0d090; }
+  .badge-no_seleccionado { background: #faeaea; color: var(--rojo); border: 1px solid #e8b8b8; }
+
+  /* FORMS */
+  .form-group { margin-bottom: 1.2rem; }
+  .form-group label {
+    display: block; font-size: 0.82rem; font-weight: 500;
+    color: var(--azul-d); margin-bottom: 0.35rem; text-transform: uppercase; letter-spacing: 0.04em;
+  }
+  .form-group input, .form-group select, .form-group textarea {
+    width: 100%; padding: 0.6rem 0.9rem;
+    border: 1.5px solid var(--gris-l); border-radius: 8px;
+    font-family: 'DM Sans', sans-serif; font-size: 0.9rem;
+    background: var(--blanco); color: var(--negro);
+    transition: border-color 0.2s;
+  }
+  .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+    outline: none; border-color: var(--azul);
+    box-shadow: 0 0 0 3px rgba(90,127,143,0.1);
+  }
+  .form-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  .form-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; }
+  .form-section {
+    background: var(--gris-f); border-radius: 10px;
+    padding: 1.4rem; margin-bottom: 1.5rem;
+    border-left: 3px solid var(--dorado);
+  }
+  .form-section-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 1.15rem; font-weight: 600; color: var(--azul-d);
+    margin-bottom: 1rem;
+  }
+
+  /* TABLA */
+  .tabla { width: 100%; border-collapse: collapse; }
+  .tabla th {
+    background: var(--gris-f); color: var(--azul-d);
+    font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em;
+    padding: 0.8rem 1rem; text-align: left;
+    border-bottom: 2px solid var(--gris-l);
+  }
+  .tabla td { padding: 0.85rem 1rem; border-bottom: 1px solid var(--gris-l); font-size: 0.88rem; vertical-align: middle; }
+  .tabla tr:hover td { background: var(--gris-f); }
+  .tabla tr:last-child td { border-bottom: none; }
+
+  /* SCORE CIRCLE */
+  .score-circle {
+    width: 42px; height: 42px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 0.85rem;
+    background: var(--gris-f); color: var(--gris-t);
+    border: 2px solid var(--gris-l);
+  }
+  .score-circle.high { background: #e8f4ec; color: var(--verde); border-color: #b8ddc4; }
+  .score-circle.mid  { background: #fef6e4; color: var(--naranja); border-color: #f0d090; }
+  .score-circle.low  { background: #faeaea; color: var(--rojo); border-color: #e8b8b8; }
+
+  /* ALERT */
+  .alert { padding: 0.9rem 1.2rem; border-radius: 8px; margin-bottom: 1.5rem; font-size: 0.88rem; }
+  .alert-error { background: #faeaea; color: var(--rojo); border: 1px solid #e8b8b8; }
+  .alert-success { background: #e8f4ec; color: var(--verde); border: 1px solid #b8ddc4; }
+
+  /* STAT BOXES */
+  .stats-row { display: flex; gap: 1rem; margin-bottom: 2rem; flex-wrap: wrap; }
+  .stat-box {
+    flex: 1; min-width: 120px;
+    background: var(--blanco); border: 1px solid var(--gris-l);
+    border-radius: 10px; padding: 1rem 1.2rem; text-align: center;
+  }
+  .stat-box .stat-num { font-size: 1.8rem; font-weight: 700; color: var(--azul-d); line-height: 1; }
+  .stat-box .stat-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--gris-t); margin-top: 0.3rem; }
+
+  /* RADIO GROUPS */
+  .radio-group { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+  .radio-group label {
+    display: flex; align-items: center; gap: 0.4rem;
+    padding: 0.4rem 0.8rem; border-radius: 6px;
+    border: 1.5px solid var(--gris-l); cursor: pointer;
+    font-size: 0.85rem; font-weight: 400;
+    text-transform: none; letter-spacing: 0; color: var(--negro);
+    transition: all 0.15s;
+  }
+  .radio-group input[type=radio] { accent-color: var(--azul); }
+  .radio-group label:has(input:checked) { border-color: var(--azul); background: rgba(90,127,143,0.07); color: var(--azul-d); }
+
+  /* SPINNER */
+  .spinner { display: inline-block; width: 18px; height: 18px; border: 2px solid rgba(255,255,255,0.4); border-top-color: white; border-radius: 50%; animation: spin 0.7s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* POSICION RANK */
+  .rank-pos { font-family: 'Cormorant Garamond', serif; font-size: 1.3rem; font-weight: 600; color: var(--dorado); width: 30px; text-align: center; }
+
+  /* FOOTER */
+  footer { text-align: center; padding: 2rem; color: var(--gris-t); font-size: 0.78rem; border-top: 1px solid var(--gris-l); margin-top: 4rem; }
+  footer span { color: var(--dorado); }
+
+  /* NAV HAMBURGER */
+  .nav-toggle {
+    display: none; background: none; border: none; cursor: pointer;
+    font-size: 1.4rem; color: var(--azul-d); padding: 0.3rem;
+    line-height: 1;
+  }
+  .nav-right { display: flex; align-items: center; gap: 1rem; }
+
+  /* TABLA: scroll horizontal en pantallas pequeñas */
+  .tabla-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+  /* ── TABLET (≤ 900px) ─────────────────────────────────────────── */
+  @media (max-width: 900px) {
+    main { padding: 1.8rem 1.2rem; }
+    .form-grid-3 { grid-template-columns: 1fr 1fr; }
+    .stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem; }
+    .page-title { font-size: 1.8rem; }
+  }
+
+  /* ── MÓVIL (≤ 640px) ──────────────────────────────────────────── */
+  @media (max-width: 640px) {
+    /* Nav */
+    nav { padding: 0 1rem; height: 60px; }
+    .nav-logo img { height: 36px; }
+    .nav-toggle { display: block; }
+    .nav-right {
+      display: none; position: absolute; top: 60px; left: 0; right: 0;
+      background: var(--blanco); border-bottom: 2px solid var(--gris-l);
+      flex-direction: column; align-items: flex-start; gap: 0;
+      padding: 0.75rem 1rem 1rem; z-index: 99;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+    }
+    .nav-right.open { display: flex; }
+    .nav-user { margin-right: 0; margin-bottom: 0.5rem; }
+    .nav-links { flex-direction: column; width: 100%; gap: 0.25rem; }
+    .nav-links a { width: 100%; padding: 0.6rem 0.75rem; border-radius: 8px; }
+
+    /* Layout */
+    main { padding: 1.2rem 0.85rem; }
+    .page-title { font-size: 1.5rem; }
+
+    /* Grids → columna única */
+    .form-grid-2,
+    .form-grid-3 { grid-template-columns: 1fr; }
+
+    /* Stats: 2 columnas en móvil */
+    .stats-row { grid-template-columns: 1fr 1fr; gap: 0.6rem; }
+    .stat-box { padding: 0.75rem; }
+    .stat-box .stat-num { font-size: 1.4rem; }
+
+    /* Cards */
+    .card { padding: 1rem; }
+    .card:hover { transform: none; }
+
+    /* Tabla */
+    .tabla th, .tabla td { padding: 0.6rem 0.7rem; font-size: 0.82rem; }
+
+    /* Botones más grandes para touch */
+    .btn { padding: 0.6rem 1rem; }
+    .btn-sm { padding: 0.5rem 0.85rem; font-size: 0.82rem; }
+
+    /* Footer */
+    footer { padding: 1.2rem; margin-top: 2.5rem; }
+  }
+</style>
+</head>
+<body>
+{% if session.user_id %}
+<nav>
+  <a class="nav-logo" href="{{ url_for('dashboard') }}">
+    <img src="{{ url_for('static', filename='logo.png') }}" alt="TAME Formación">
+  </a>
+  <button class="nav-toggle" id="nav-toggle" aria-label="Menú">☰</button>
+  <div class="nav-right" id="nav-right">
+    <span class="nav-user">{{ session.user_nombre }}</span>
+    <form action="{{ url_for('buscar_global') }}" method="GET"
+          style="display:flex;align-items:center;gap:0.3rem;">
+      <input type="text" name="q" placeholder="Buscar alumno…"
+             style="padding:0.35rem 0.7rem;border:1.5px solid var(--gris-l);border-radius:6px;
+                    font-size:0.82rem;width:160px;font-family:'DM Sans',sans-serif;"
+             onfocus="this.style.width='200px'" onblur="this.style.width='160px'"
+             style="transition:width 0.2s;">
+      <button type="submit" style="background:none;border:none;cursor:pointer;font-size:1rem;padding:0.2rem;">🔍</button>
+    </form>
+    <div class="nav-links">
+      <a href="{{ url_for('dashboard') }}">Dashboard</a>
+      <a href="{{ url_for('nuevo_curso') }}" class="btn-nav">+ Nuevo curso</a>
+      <a href="{{ url_for('logout') }}">Salir</a>
+    </div>
+  </div>
+</nav>
+<script>
+  document.getElementById('nav-toggle').addEventListener('click', function() {
+    document.getElementById('nav-right').classList.toggle('open');
+  });
+</script>
+{% endif %}
+<main>{% block content %}{% endblock %}</main>
+<footer>© 2026 <span>TAME Formación</span> · Mislata Formación S.L. · Sistema de Selección FPO</footer>
+</body>
+</html>

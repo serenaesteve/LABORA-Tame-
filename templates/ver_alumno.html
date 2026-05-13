@@ -1,0 +1,343 @@
+{% extends 'base.html' %}
+{% block title %}{{ alumno.nombre }} {{ alumno.apellidos }} – TAME{% endblock %}
+{% block content %}
+<style>
+  @media (max-width: 900px) {
+    .alumno-top { flex-direction: column !important; }
+    .alumno-score { align-items: flex-start !important; flex-direction: row !important; gap: 1rem; }
+    .dos-cols { grid-template-columns: 1fr !important; }
+  }
+  @media (max-width: 640px) {
+    .estado-btns { flex-wrap: wrap; gap: 0.4rem; }
+    .estado-btns .btn { flex: 1 1 calc(50% - 0.4rem); justify-content: center; font-size: 0.78rem; }
+    .doc-upload-row { flex-direction: column; }
+    .doc-upload-row > div, .doc-upload-row button { width: 100%; }
+    .expediente-row { flex-direction: column; align-items: stretch !important; }
+    .expediente-row input { width: 100%; }
+  }
+</style>
+
+<div class="alumno-top" style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:1rem;margin-bottom:2rem;">
+  <div>
+    <div style="display:flex;gap:0.5rem;margin-bottom:1rem;flex-wrap:wrap;">
+      <a href="{{ url_for('ver_curso', cid=alumno.curso_id) }}" class="btn btn-outline btn-sm">← {{ alumno.curso_nombre }}</a>
+      <a href="{{ url_for('editar_alumno', aid=alumno.id) }}" class="btn btn-outline btn-sm">✏️ Editar datos</a>
+    </div>
+    <h1 class="page-title" style="margin-bottom:0.2rem;">{{ alumno.nombre }} {{ alumno.apellidos }}</h1>
+    <p style="color:var(--gris-t);font-size:0.85rem;">{{ alumno.email or '' }} {% if alumno.telefono %}· {{ alumno.telefono }}{% endif %}</p>
+  </div>
+  <div class="alumno-score" style="display:flex;flex-direction:column;align-items:flex-end;gap:0.5rem;">
+    <span class="badge badge-{{ alumno.estado }}" style="font-size:0.9rem;padding:0.4rem 1rem;">
+      {% if alumno.estado=='seleccionado' %}✓ Seleccionado
+      {% elif alumno.estado=='reserva' %}⟳ Reserva
+      {% elif alumno.estado=='no_seleccionado' %}✗ No seleccionado
+      {% else %}○ Pendiente{% endif %}
+    </span>
+    {% if alumno.puntuacion_ia %}
+    <div style="text-align:center;">
+      <div style="font-family:'Cormorant Garamond',serif;font-size:2.5rem;font-weight:700;color:var(--dorado);line-height:1;">{{ "%.1f"|format(alumno.puntuacion_ia) }}</div>
+      <div style="font-size:0.7rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--gris-t);">Puntuación IA</div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<div class="dos-cols" style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;">
+
+  <!-- DATOS PERSONALES -->
+  <div class="form-section">
+    <div class="form-section-title">📋 Datos Personales</div>
+    <table style="width:100%;font-size:0.85rem;border-collapse:collapse;">
+      {% macro fila(label, val) %}
+      {% if val %}<tr><td style="color:var(--gris-t);padding:0.3rem 0;width:40%;font-size:0.78rem;text-transform:uppercase;letter-spacing:0.04em;">{{ label }}</td><td style="padding:0.3rem 0;font-weight:400;">{{ val }}</td></tr>{% endif %}
+      {% endmacro %}
+      {{ fila('DNI', alumno.dni) }}
+      {{ fila('Seg. Social', alumno.seg_social) }}
+      {{ fila('Fecha nac.', alumno.fecha_nacimiento) }}
+      {{ fila('Edad', alumno.edad) }}
+      {{ fila('Sexo', alumno.sexo) }}
+      {{ fila('Nacionalidad', alumno.nacionalidad) }}
+      {{ fila('Domicilio', alumno.domicilio ~ ' ' ~ (alumno.numero or '') ~ ' ' ~ (alumno.puerta or '')) }}
+      {{ fila('Población', alumno.poblacion ~ ' ' ~ (alumno.cp or '')) }}
+      {{ fila('Teléfono', alumno.telefono) }}
+      {{ fila('Tel. emergencias', alumno.telefono_emergencias) }}
+      {{ fila('Email', alumno.email) }}
+    </table>
+    <!-- Expediente: campo editable solo para el admin -->
+    <form method="POST" action="{{ url_for('guardar_expediente', aid=alumno.id) }}"
+          class="expediente-row" style="margin-top:1rem;display:flex;gap:0.5rem;align-items:center;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <label style="font-size:0.78rem;text-transform:uppercase;letter-spacing:0.04em;color:var(--azul-d);white-space:nowrap;">Nº Expediente</label>
+      <input type="text" name="expediente" value="{{ alumno.expediente or '' }}"
+             placeholder="Asignar número de expediente…"
+             style="flex:1;padding:0.45rem 0.8rem;border:1.5px solid var(--gris-l);border-radius:8px;font-size:0.88rem;">
+      <button type="submit" class="btn btn-outline btn-sm">Guardar</button>
+    </form>
+  </div>
+
+  <!-- SITUACIÓN LABORAL -->
+  <div class="form-section">
+    <div class="form-section-title">💼 Situación Laboral</div>
+    <table style="width:100%;font-size:0.85rem;border-collapse:collapse;">
+      {% macro fila(label, val) %}
+      {% if val %}<tr><td style="color:var(--gris-t);padding:0.3rem 0;width:50%;font-size:0.78rem;text-transform:uppercase;letter-spacing:0.04em;">{{ label }}</td><td style="padding:0.3rem 0;">{{ val }}</td></tr>{% endif %}
+      {% endmacro %}
+      {{ fila('Situación', alumno.situacion_laboral) }}
+      {{ fila('Cobra prestaciones', alumno.cobra_prestaciones) }}
+      {{ fila('Inscripción SERVEF', alumno.fecha_inscripcion_servef) }}
+      {{ fila('Oficina', alumno.oficina_servef) }}
+      {{ fila('Titulación', alumno.titulacion) }}
+      {{ fila('Especialidad', alumno.titulacion_especialidad) }}
+      {{ fila('Estudia actualmente', alumno.estudia_actualmente) }}
+      {{ fila('Qué estudia', alumno.que_estudia) }}
+    </table>
+  </div>
+
+</div>
+
+{% if fpo %}
+<div class="form-section" style="margin-top:1rem;">
+  <div class="form-section-title">📚 Cursos FPO Realizados</div>
+  <table class="tabla">
+    <thead><tr><th>Especialidad</th><th>Horas</th><th>Año</th></tr></thead>
+    <tbody>
+      {% for c in fpo %}
+      <tr><td>{{ c.especialidad }}</td><td>{{ c.horas or '–' }}</td><td>{{ c.anyo or '–' }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
+{% if exp %}
+<div class="form-section" style="margin-top:1rem;">
+  <div class="form-section-title">🏢 Experiencia Profesional</div>
+  <table class="tabla">
+    <thead><tr><th>Profesión</th><th>Categoría</th><th>Duración</th><th>Empresa</th></tr></thead>
+    <tbody>
+      {% for e in exp %}
+      <tr>
+        <td>{{ e.profesion }}</td>
+        <td>{{ e.categoria or '–' }}</td>
+        <td>{% set a = (e.anios or 0)|int %}{% set m = (e.meses or 0)|int %}{% if a and m %}{{ a }} a. {{ m }} m.{% elif a %}{{ a }} año{% if a != 1 %}s{% endif %}{% elif m %}{{ m }} mes{% if m != 1 %}es{% endif %}{% else %}–{% endif %}</td>
+        <td>{{ e.empresa or '–' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
+<!-- MOTIVACIÓN -->
+{% if alumno.motivacion %}
+<div class="form-section" style="margin-top:1rem;">
+  <div class="form-section-title">💬 Motivación</div>
+  <p style="font-size:0.9rem;line-height:1.6;color:var(--negro);">{{ alumno.motivacion }}</p>
+  <div style="margin-top:0.8rem;font-size:0.82rem;color:var(--gris-t);">
+    Desea realizar el curso: <strong>{{ alumno.desea_realizar or '–' }}</strong>
+    &nbsp;·&nbsp; Carnet conducir: <strong>{{ alumno.tiene_carnet or '–' }}</strong>
+    &nbsp;·&nbsp; Vehículo propio: <strong>{{ alumno.tiene_vehiculo or '–' }}</strong>
+  </div>
+</div>
+{% endif %}
+
+
+
+{% if alumno.razon_interes %}
+<div class="form-section" style="margin-top:1rem;border-left:3px solid var(--azul);">
+  <div class="form-section-title">📋 Cuestionario General · Prueba de Selección</div>
+  <table style="width:100%;font-size:0.87rem;border-collapse:collapse;">
+    {% set pregs = [
+      ('1. Razones de interés por el curso', alumno.razon_interes),
+      ('2. Motivación y razones a favor/en contra', alumno.razon_motivacion),
+      ('3. Cómo le ayudará el curso a encontrar empleo', alumno.razon_empleo),
+      ('4. Razones que impedirían finalizar el curso', alumno.razon_impedimentos),
+      ('5. Factores personales que pueden limitar el aprovechamiento', alumno.razon_limitaciones),
+      ('6. Observaciones', alumno.observaciones),
+    ] %}
+    {% for pregunta, respuesta in pregs %}
+    {% if respuesta %}
+    <tr>
+      <td colspan="2" style="padding:0.8rem 0 0.2rem;color:var(--azul-d);font-weight:500;font-size:0.78rem;text-transform:uppercase;letter-spacing:0.04em;">{{ pregunta }}</td>
+    </tr>
+    <tr>
+      <td colspan="2" style="padding:0 0 0.8rem;border-bottom:1px solid var(--gris-l);line-height:1.6;color:var(--negro);">{{ respuesta }}</td>
+    </tr>
+    {% endif %}
+    {% endfor %}
+  </table>
+  {% if alumno.acepta_compromiso %}
+  <div style="margin-top:0.8rem;font-size:0.8rem;color:var(--verde);">✓ Ha aceptado las condiciones de Labora</div>
+  {% endif %}
+</div>
+{% endif %}
+
+{% if respuestas %}
+<div class="form-section" style="margin-top:1rem;border-left:3px solid var(--dorado);">
+  <div class="form-section-title" style="color:var(--dorado);">✦ Respuestas Prueba de Selección</div>
+  <table style="width:100%;font-size:0.88rem;border-collapse:collapse;">
+    {% for pregunta, respuesta in respuestas.items() %}
+    <tr>
+      <td style="color:var(--azul-d);padding:0.5rem 0;width:45%;font-weight:500;vertical-align:top;border-bottom:1px solid var(--gris-l);">{{ pregunta }}</td>
+      <td style="padding:0.5rem 0.5rem;border-bottom:1px solid var(--gris-l);line-height:1.5;">{{ respuesta or '–' }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+{% endif %}
+
+<!-- ANÁLISIS IA -->
+{% if analisis %}
+<div class="card" style="margin-top:1.5rem;border-left:4px solid var(--dorado);background:linear-gradient(135deg,#fefdf8,#fff);">
+  <div style="display:flex;align-items:center;gap:0.7rem;margin-bottom:1rem;">
+    <span style="font-size:1.4rem;">✦</span>
+    <div>
+      <div style="font-family:'Cormorant Garamond',serif;font-size:1.2rem;font-weight:600;color:var(--azul-d);">Análisis de la IA</div>
+      <div style="font-size:0.75rem;color:var(--gris-t);">Posición en ranking: #{{ analisis.posicion }}</div>
+    </div>
+  </div>
+  <p style="font-size:0.9rem;line-height:1.6;margin-bottom:1rem;">{{ analisis.resumen }}</p>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+    {% if analisis.puntos_fuertes %}
+    <div>
+      <div style="font-size:0.75rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--verde);font-weight:600;margin-bottom:0.5rem;">Puntos fuertes</div>
+      {% for p in analisis.puntos_fuertes %}
+      <div style="font-size:0.85rem;margin-bottom:0.3rem;">✓ {{ p }}</div>
+      {% endfor %}
+    </div>
+    {% endif %}
+    {% if analisis.puntos_debiles %}
+    <div>
+      <div style="font-size:0.75rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--rojo);font-weight:600;margin-bottom:0.5rem;">Puntos a considerar</div>
+      {% for p in analisis.puntos_debiles %}
+      <div style="font-size:0.85rem;margin-bottom:0.3rem;">○ {{ p }}</div>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
+<!-- DOCUMENTOS -->
+<div class="form-section" style="margin-top:1rem;border-left:3px solid var(--azul);">
+  <div class="form-section-title">📎 Documentos adjuntos</div>
+
+  <!-- Lista de documentos existentes -->
+  {% if documentos %}
+  <div style="display:flex;flex-direction:column;gap:0.5rem;margin-bottom:1rem;">
+    {% set etiq = {'dni':'DNI/NIE','darde':'DARDE','sip':'SIP','otro':'Otro'} %}
+    {% for doc in documentos %}
+    <div style="display:flex;align-items:center;justify-content:space-between;
+                background:var(--gris-f);border:1px solid var(--gris-l);border-radius:8px;padding:0.5rem 0.8rem;">
+      <div>
+        <span style="font-size:0.7rem;text-transform:uppercase;letter-spacing:0.06em;
+                     color:var(--azul);font-weight:600;margin-right:0.5rem;">{{ etiq.get(doc.tipo, doc.tipo) }}</span>
+        <a href="{{ url_for('descargar_documento', aid=alumno.id, did=doc.id) }}"
+           target="_blank" style="font-size:0.85rem;color:var(--azul-d);text-decoration:none;">
+          {{ doc.nombre_original }}
+        </a>
+        <span style="font-size:0.72rem;color:var(--gris-t);margin-left:0.5rem;">{{ doc.creado_en[:10] }}</span>
+      </div>
+      <form method="POST" action="{{ url_for('eliminar_documento', aid=alumno.id, did=doc.id) }}"
+            style="display:inline;" onsubmit="return confirm('¿Eliminar este documento?')">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" style="background:none;border:none;cursor:pointer;color:var(--rojo);font-size:0.85rem;"
+                title="Eliminar">✕</button>
+      </form>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p style="font-size:0.83rem;color:var(--gris-t);margin-bottom:1rem;">Sin documentos adjuntos.</p>
+  {% endif %}
+
+  <!-- Formulario de subida -->
+  <form method="POST" action="{{ url_for('subir_documento', aid=alumno.id) }}"
+        enctype="multipart/form-data"
+        class="doc-upload-row" style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:flex-end;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div>
+      <label style="font-size:0.78rem;text-transform:uppercase;letter-spacing:0.04em;color:var(--azul-d);display:block;margin-bottom:0.3rem;">Tipo</label>
+      <select name="tipo" style="padding:0.5rem 0.8rem;border:1.5px solid var(--gris-l);border-radius:8px;font-size:0.88rem;">
+        <option value="dni">DNI/NIE</option>
+        <option value="darde">DARDE</option>
+        <option value="sip">SIP</option>
+        <option value="otro">Otro</option>
+      </select>
+    </div>
+    <div style="flex:1;min-width:200px;">
+      <label style="font-size:0.78rem;text-transform:uppercase;letter-spacing:0.04em;color:var(--azul-d);display:block;margin-bottom:0.3rem;">Archivo (PDF, JPG, PNG)</label>
+      <input type="file" name="archivo" accept=".pdf,.jpg,.jpeg,.png,.webp" required
+             style="padding:0.45rem 0.6rem;border:1.5px solid var(--gris-l);border-radius:8px;font-size:0.85rem;width:100%;">
+    </div>
+    <button type="submit" class="btn btn-primary btn-sm">Subir</button>
+  </form>
+</div>
+
+<!-- NOTAS INTERNAS -->
+<div class="form-section" style="margin-top:1rem;border-left:3px solid var(--gris-t);">
+  <div class="form-section-title">📌 Notas internas</div>
+  <form method="POST" action="{{ url_for('guardar_notas', aid=alumno.id) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <textarea name="notas" rows="3" placeholder="Notas visibles solo para el equipo de selección…"
+              style="width:100%;padding:0.6rem 0.9rem;border:1.5px solid var(--gris-l);border-radius:8px;font-family:'DM Sans',sans-serif;font-size:0.9rem;resize:vertical;">{{ alumno.notas or '' }}</textarea>
+    <div style="margin-top:0.6rem;">
+      <button type="submit" class="btn btn-outline btn-sm">Guardar notas</button>
+    </div>
+  </form>
+</div>
+
+<!-- CAMBIAR ESTADO + ELIMINAR -->
+{% if plazas_llenas and alumno.estado != 'seleccionado' %}
+<div class="alert" style="background:#fef6e4;color:var(--naranja);border:1px solid #f0d090;margin-top:1.5rem;">
+  ⚠️ Las plazas de este curso ya están cubiertas.
+</div>
+{% endif %}
+
+<div style="display:flex;gap:1rem;margin-top:1.5rem;flex-wrap:wrap;align-items:center;">
+  <div class="estado-btns" style="display:flex;gap:0.5rem;">
+    {% for est, label in [('seleccionado','✓ Seleccionado'),('reserva','⟳ Reserva'),('pendiente','○ Pendiente'),('no_seleccionado','✗ No seleccionado')] %}
+    <button onclick="cambiarEstado('{{ est }}')" class="btn btn-sm
+      {% if alumno.estado == est %}btn-primary{% else %}btn-outline{% endif %}"
+      id="btn-{{ est }}">{{ label }}</button>
+    {% endfor %}
+  </div>
+  <form method="POST" action="{{ url_for('eliminar_alumno', aid=alumno.id) }}"
+        onsubmit="return confirm('¿Eliminar este alumno?')" style="margin-left:auto;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button class="btn btn-danger btn-sm">Eliminar alumno</button>
+  </form>
+</div>
+
+<script>
+const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+async function cambiarEstado(estado) {
+  const res = await fetch('/alumno/{{ alumno.id }}/estado', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrfToken},
+    body: JSON.stringify({estado})
+  });
+  if (res.ok) {
+    const data = await res.json();
+    if (data.aviso === 'plazas_llenas') alert('⚠️ Las plazas del curso están cubiertas.');
+    location.reload();
+  }
+}
+</script>
+
+{% if historial %}
+<div class="form-section" style="margin-top:1rem;border-left:3px solid var(--dorado-l, #d4bc6a);">
+  <div class="form-section-title">🕓 Historial de cambios</div>
+  <table style="width:100%;font-size:0.82rem;border-collapse:collapse;">
+    {% for h in historial %}
+    <tr style="border-bottom:1px solid var(--gris-l);">
+      <td style="padding:0.4rem 0.5rem;color:var(--gris-t);white-space:nowrap;">{{ h.creado_en[:16].replace('T',' ') }}</td>
+      <td style="padding:0.4rem 0.5rem;font-weight:500;color:var(--azul-d);">{{ h.accion }}</td>
+      <td style="padding:0.4rem 0.5rem;">{{ h.detalle or '' }}</td>
+      <td style="padding:0.4rem 0.5rem;color:var(--gris-t);font-size:0.75rem;">{{ h.usuario_nombre or '' }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+{% endif %}
+{% endblock %}

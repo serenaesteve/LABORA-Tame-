@@ -1,0 +1,163 @@
+{% extends 'base.html' %}
+{% block title %}Nuevo Curso – TAME{% endblock %}
+{% block content %}
+<a href="{{ url_for('dashboard') }}" class="btn btn-outline btn-sm" style="margin-bottom:1.5rem;">← Volver</a>
+<h1 class="page-title">Nuevo Curso FPO</h1>
+
+<form method="POST" style="max-width:760px;">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+  <!-- DATOS DEL CURSO -->
+  <div class="card" style="margin-bottom:1.5rem;">
+    <div style="font-family:'Cormorant Garamond',serif;font-size:1.2rem;font-weight:600;color:var(--azul-d);margin-bottom:1.2rem;padding-bottom:0.6rem;border-bottom:1px solid var(--gris-l);">Datos del curso</div>
+    <div class="form-group">
+      <label>Nombre del curso *</label>
+      <input type="text" name="nombre" placeholder="Ej: Administración de Sistemas Informáticos" required>
+    </div>
+    <div class="form-grid-2">
+      <div class="form-group">
+        <label>Código</label>
+        <input type="text" name="codigo" placeholder="Ej: IFCT0510">
+      </div>
+      <div class="form-group">
+        <label>Plazas</label>
+        <input type="number" name="plazas" value="20" min="1">
+      </div>
+    </div>
+    <div class="form-grid-2">
+      <div class="form-group">
+        <label>Fecha inicio</label>
+        <input type="date" name="fecha_inicio">
+      </div>
+      <div class="form-group">
+        <label>Fecha fin</label>
+        <input type="date" name="fecha_fin">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Descripción</label>
+      <textarea name="descripcion" rows="2" placeholder="Descripción breve del curso..."></textarea>
+    </div>
+  </div>
+
+  <!-- PRUEBA DE SELECCIÓN -->
+  <div class="card" style="margin-bottom:1.5rem;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.2rem;padding-bottom:0.6rem;border-bottom:1px solid var(--gris-l);">
+      <div>
+        <div style="font-family:'Cormorant Garamond',serif;font-size:1.2rem;font-weight:600;color:var(--azul-d);">Prueba de selección específica</div>
+        <div style="font-size:0.78rem;color:var(--gris-t);margin-top:0.2rem;">Preguntas adicionales que aparecerán al final del formulario de inscripción de este curso</div>
+      </div>
+      <button type="button" class="btn btn-gold btn-sm" onclick="addPregunta()">+ Añadir pregunta</button>
+    </div>
+
+    <div id="preguntas-list" style="display:flex;flex-direction:column;gap:1rem;"></div>
+
+    <div id="empty-state" style="text-align:center;padding:2rem;color:var(--gris-t);font-size:0.85rem;">
+      <div style="font-size:2rem;margin-bottom:0.5rem;">📝</div>
+      Sin preguntas. Pulsa <strong>"+ Añadir pregunta"</strong> para crear la prueba de selección.
+    </div>
+  </div>
+
+  <div style="display:flex;gap:0.75rem;">
+    <button type="submit" class="btn btn-primary">Crear curso</button>
+    <a href="{{ url_for('dashboard') }}" class="btn btn-outline">Cancelar</a>
+  </div>
+</form>
+
+<style>
+  .pregunta-card {
+    background: var(--gris-f);
+    border: 1.5px solid var(--gris-l);
+    border-radius: 10px;
+    padding: 1.2rem;
+    position: relative;
+  }
+  .pregunta-card:focus-within { border-color: var(--azul); }
+  .preg-header { display: flex; gap: 0.8rem; align-items: center; margin-bottom: 0.9rem; }
+  .preg-num {
+    width: 28px; height: 28px; border-radius: 50%;
+    background: var(--dorado); color: white;
+    font-size: 0.78rem; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .preg-label-input {
+    flex: 1; padding: 0.55rem 0.8rem;
+    border: 1.5px solid var(--gris-l); border-radius: 8px;
+    font-family: 'DM Sans', sans-serif; font-size: 0.9rem;
+    background: white;
+  }
+  .preg-label-input:focus { outline: none; border-color: var(--azul); }
+  .tipo-selector { display: flex; gap: 0.4rem; }
+  .tipo-btn {
+    padding: 0.35rem 0.75rem; border-radius: 6px; border: 1.5px solid var(--gris-l);
+    font-size: 0.78rem; cursor: pointer; background: white;
+    font-family: 'DM Sans', sans-serif; font-weight: 500; color: var(--gris-t);
+    transition: all 0.15s;
+  }
+  .tipo-btn.active { border-color: var(--azul); background: rgba(90,127,143,0.1); color: var(--azul-d); }
+  .opts-container { margin-top: 0.8rem; }
+  .opts-container input {
+    width: 100%; padding: 0.45rem 0.8rem;
+    border: 1.5px solid var(--gris-l); border-radius: 7px;
+    font-family: 'DM Sans', sans-serif; font-size: 0.85rem;
+    background: white;
+  }
+  .opts-container input:focus { outline: none; border-color: var(--azul); }
+  .btn-remove {
+    position: absolute; top: 0.8rem; right: 0.8rem;
+    width: 26px; height: 26px; border-radius: 50%;
+    border: none; background: #faeaea; color: var(--rojo);
+    cursor: pointer; font-size: 0.9rem; display: flex; align-items: center; justify-content: center;
+  }
+</style>
+
+<script>
+let count = 0;
+
+function addPregunta() {
+  document.getElementById('empty-state').style.display = 'none';
+  const idx = count++;
+  const div = document.createElement('div');
+  div.className = 'pregunta-card';
+  div.id = `preg-${idx}`;
+  div.innerHTML = `
+    <button type="button" class="btn-remove" onclick="removePregunta(${idx})" title="Eliminar">✕</button>
+    <div class="preg-header">
+      <div class="preg-num">${idx+1}</div>
+      <input class="preg-label-input" type="text" name="preg_label_${idx}"
+        placeholder="Escribe aquí la pregunta..." required>
+    </div>
+    <div style="margin-bottom:0.7rem;">
+      <div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--gris-t);margin-bottom:0.4rem;">Tipo de respuesta</div>
+      <div class="tipo-selector">
+        <button type="button" class="tipo-btn active" onclick="setTipo(${idx},'texto',this)">✏️ Texto libre</button>
+        <button type="button" class="tipo-btn" onclick="setTipo(${idx},'sino',this)">✓/✗ Sí / No</button>
+        <button type="button" class="tipo-btn" onclick="setTipo(${idx},'multiple',this)">☰ Múltiple</button>
+      </div>
+      <input type="hidden" name="preg_tipo_${idx}" id="tipo-${idx}" value="texto">
+    </div>
+    <div class="opts-container" id="opts-${idx}" style="display:none;">
+      <div style="font-size:0.75rem;color:var(--gris-t);margin-bottom:0.4rem;">Opciones separadas por <code>|</code> · Ej: <em>Menos de 1 año | 1-3 años | Más de 3 años</em></div>
+      <input type="text" name="preg_opts_${idx}" placeholder="Opción 1 | Opción 2 | Opción 3">
+    </div>
+  `;
+  document.getElementById('preguntas-list').appendChild(div);
+}
+
+function removePregunta(idx) {
+  document.getElementById(`preg-${idx}`).remove();
+  if (document.getElementById('preguntas-list').children.length === 0) {
+    document.getElementById('empty-state').style.display = 'block';
+  }
+}
+
+function setTipo(idx, tipo, btn) {
+  document.getElementById(`tipo-${idx}`).value = tipo;
+  btn.closest('.tipo-selector').querySelectorAll('.tipo-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  const opts = document.getElementById(`opts-${idx}`);
+  opts.style.display = tipo === 'multiple' ? 'block' : 'none';
+}
+</script>
+{% endblock %}

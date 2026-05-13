@@ -1,0 +1,6 @@
+flask
+flask-wtf
+werkzeug
+python-dotenv
+qrcode[pil]
+openpyxl
