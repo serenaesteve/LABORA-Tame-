@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Enlace no válido – TAME</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root{--azul:#5a7f8f;--blanco:#fff;--gris-f:#f7f7f5;--gris-l:#e8e8e4;--gris-t:#888880;--negro:#1a1a18;--rojo:#a04040;}
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'DM Sans',sans-serif;background:var(--gris-f);min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2rem;}
+  .box{background:var(--blanco);border:1px solid var(--gris-l);border-radius:16px;padding:3rem 2.5rem;max-width:480px;width:100%;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,0.08);}
+  .icono{width:72px;height:72px;border-radius:50%;background:#faeaea;border:3px solid #e8b8b8;display:flex;align-items:center;justify-content:center;font-size:2rem;margin:0 auto 1.5rem;}
+  h1{font-family:'Cormorant Garamond',serif;font-size:1.8rem;color:var(--negro);margin-bottom:0.5rem;}
+  p{color:var(--gris-t);font-size:0.9rem;line-height:1.7;margin-top:0.8rem;}
+  img{height:40px;margin-bottom:2rem;}
+</style>
+</head>
+<body>
+<div class="box">
+  <img src="{{ url_for('static', filename='logo.png') }}" alt="TAME">
+  <div class="icono">⚠️</div>
+  {% if motivo == 'caducado' %}
+  <h1>Enlace caducado</h1>
+  <p>El enlace de confirmación ha expirado (validez de 48 horas).</p>
+  <p>Vuelve a rellenar el formulario de inscripción para recibir un nuevo enlace.</p>
+  {% else %}
+  <h1>Enlace no válido</h1>
+  <p>Este enlace de confirmación no existe o ya ha sido utilizado.</p>
+  <p>Si ya confirmaste tu inscripción, no necesitas hacer nada más.</p>
+  {% endif %}
+  <p style="margin-top:1.5rem;font-size:0.78rem;">© 2025 TAME Formación · Mislata Formación S.L.</p>
+</div>
+</body>
+</html>

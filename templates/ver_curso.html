@@ -37,7 +37,7 @@
     <button class="btn btn-outline btn-sm" onclick="document.getElementById('modal-qr').style.display='flex'">📲 QR</button>
     <form method="POST" action="{{ url_for('toggle_inscripciones', cid=curso.id) }}" style="display:inline;">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      {% if curso.inscripciones_abiertas %}
+      {% if (curso.inscripciones_abiertas is none) or curso.inscripciones_abiertas %}
       <button class="btn btn-outline btn-sm" style="border-color:var(--verde);color:var(--verde);" title="Las inscripciones están abiertas. Pulsa para cerrarlas.">🟢 Abiertas</button>
       {% else %}
       <button class="btn btn-outline btn-sm" style="border-color:var(--rojo);color:var(--rojo);" title="Las inscripciones están cerradas. Pulsa para abrirlas.">🔴 Cerradas</button>
@@ -54,7 +54,7 @@
 </div>
 {% endif %}
 
-{% if not curso.inscripciones_abiertas %}
+{% if (curso.inscripciones_abiertas is not none) and not curso.inscripciones_abiertas %}
 <div class="alert" style="background:#faeaea;color:var(--rojo);border:1px solid #e8b8b8;margin-bottom:1.5rem;">
   🔴 El formulario de inscripción está <strong>cerrado</strong>. Los alumnos verán un mensaje de "Plazo cerrado".
 </div>
@@ -72,6 +72,48 @@
 <!-- Notificaciones IA -->
 <div id="ia-msg" style="display:none;" class="alert alert-success">✦ Análisis IA completado. Actualizando…</div>
 <div id="ia-err" style="display:none;" class="alert alert-error"></div>
+
+<!-- Panel: inscripciones pendientes de confirmar -->
+{% if pendientes_conf %}
+<div class="card" style="margin-bottom:1.5rem;border-left:4px solid var(--dorado);">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.8rem;flex-wrap:wrap;gap:0.5rem;">
+    <div style="font-family:'Cormorant Garamond',serif;font-size:1.1rem;font-weight:600;color:var(--azul-d);">
+      ✉️ Pendientes de confirmar email
+      <span style="background:var(--dorado);color:white;border-radius:20px;padding:0.1rem 0.6rem;font-size:0.75rem;font-family:'DM Sans',sans-serif;margin-left:0.4rem;">{{ pendientes_conf|length }}</span>
+    </div>
+    <span style="font-size:0.78rem;color:var(--gris-t);">Han rellenado el formulario pero no han confirmado su email</span>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:0.4rem;">
+    {% for p in pendientes_conf %}
+    {% set d = p.datos | tojson | safe %}
+    {% set info = p.datos %}
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.5rem;
+                padding:0.5rem 0.75rem;background:var(--gris-f);border-radius:8px;border:1px solid var(--gris-l);">
+      <div>
+        {% set datos_p = p['datos'] | from_json %}
+        <span style="font-weight:500;font-size:0.88rem;color:var(--negro);">{{ datos_p.nombre }} {{ datos_p.apellidos }}</span>
+        <span style="font-size:0.78rem;color:var(--gris-t);margin-left:0.5rem;">{{ datos_p.email }}</span>
+        <span style="font-size:0.72rem;color:var(--gris-t);margin-left:0.5rem;">Expira: {{ p.expira_en[:16].replace('T',' ') }}</span>
+      </div>
+      <button class="btn btn-outline btn-sm" onclick="reenviarConfirmacion({{ p.id }}, this)">
+        ↩ Reenviar email
+      </button>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<!-- Botón notificar seleccionados -->
+{% if (stats.seleccionados or 0) > 0 %}
+<div style="margin-bottom:1.5rem;">
+  <button class="btn btn-primary btn-sm" id="btn-notificar" onclick="notificarSeleccionados()">
+    📨 Notificar a los {{ stats.seleccionados }} seleccionados
+  </button>
+  <div id="notif-msg" style="display:none;margin-top:0.5rem;" class="alert alert-success"></div>
+  <div id="notif-err" style="display:none;margin-top:0.5rem;" class="alert alert-error"></div>
+</div>
+{% endif %}
 
 <!-- Buscador y filtros -->
 <form method="GET" class="filtros-bar" style="display:flex;gap:0.75rem;flex-wrap:wrap;margin-bottom:1.5rem;align-items:flex-end;">
@@ -291,6 +333,59 @@ async function lanzarIA() {
 document.getElementById('modal-qr').addEventListener('click', function(e) {
   if (e.target === this) this.style.display = 'none';
 });
+
+// ── Reenviar confirmación ─────────────────────────────────────────────────────
+async function reenviarConfirmacion(pid, btn) {
+  btn.disabled = true;
+  btn.textContent = 'Enviando…';
+  try {
+    const res = await fetch(`/inscripcion/pendiente/${pid}/reenviar`, {
+      method: 'POST',
+      headers: {'X-CSRFToken': csrfToken, 'Content-Type': 'application/json'}
+    });
+    const data = await res.json();
+    if (data.ok) {
+      btn.textContent = '✓ Enviado';
+      btn.style.color = 'var(--verde)';
+      btn.style.borderColor = 'var(--verde)';
+    } else {
+      btn.textContent = '✗ Error';
+      btn.disabled = false;
+    }
+  } catch(e) {
+    btn.textContent = '✗ Error de red';
+    btn.disabled = false;
+  }
+}
+
+// ── Notificar seleccionados ───────────────────────────────────────────────────
+async function notificarSeleccionados() {
+  const btn = document.getElementById('btn-notificar');
+  if (!confirm('¿Enviar email y WhatsApp a todos los alumnos seleccionados?')) return;
+  btn.disabled = true;
+  btn.textContent = 'Enviando…';
+  document.getElementById('notif-msg').style.display = 'none';
+  document.getElementById('notif-err').style.display = 'none';
+  try {
+    const res  = await fetch('/cursos/{{ curso.id }}/notificar-seleccionados', {
+      method: 'POST', headers: {'X-CSRFToken': csrfToken}
+    });
+    const data = await res.json();
+    if (data.ok) {
+      document.getElementById('notif-msg').textContent =
+        `✓ Notificaciones enviadas a ${data.enviados} alumno${data.enviados !== 1 ? 's' : ''}.`;
+      document.getElementById('notif-msg').style.display = 'block';
+    } else {
+      document.getElementById('notif-err').textContent = 'Error: ' + data.error;
+      document.getElementById('notif-err').style.display = 'block';
+    }
+  } catch(e) {
+    document.getElementById('notif-err').textContent = 'Error de conexión.';
+    document.getElementById('notif-err').style.display = 'block';
+  }
+  btn.disabled = false;
+  btn.textContent = '📨 Notificar a los seleccionados';
+}
 
 // ── Selección masiva ──────────────────────────────────────────────────────────
 const selTodos  = document.getElementById('sel-todos');

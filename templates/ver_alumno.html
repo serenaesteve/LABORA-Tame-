@@ -227,23 +227,37 @@
   <div style="display:flex;flex-direction:column;gap:0.5rem;margin-bottom:1rem;">
     {% set etiq = {'dni':'DNI/NIE','darde':'DARDE','sip':'SIP','otro':'Otro'} %}
     {% for doc in documentos %}
+    {% set es_imagen = doc.nombre_fichero.endswith(('.jpg','.jpeg','.png','.webp')) %}
+    {% set es_pdf    = doc.nombre_fichero.endswith('.pdf') %}
     <div style="display:flex;align-items:center;justify-content:space-between;
                 background:var(--gris-f);border:1px solid var(--gris-l);border-radius:8px;padding:0.5rem 0.8rem;">
-      <div>
+      <div style="display:flex;align-items:center;gap:0.6rem;flex:1;min-width:0;">
         <span style="font-size:0.7rem;text-transform:uppercase;letter-spacing:0.06em;
-                     color:var(--azul);font-weight:600;margin-right:0.5rem;">{{ etiq.get(doc.tipo, doc.tipo) }}</span>
+                     color:var(--azul);font-weight:600;white-space:nowrap;">{{ etiq.get(doc.tipo, doc.tipo) }}</span>
+        {% if es_imagen or es_pdf %}
+        <button type="button"
+                onclick="abrirPreview('{{ url_for('preview_documento', aid=alumno.id, did=doc.id) }}','{{ doc.nombre_original }}','{{ 'imagen' if es_imagen else 'pdf' }}')"
+                style="background:none;border:none;cursor:pointer;color:var(--azul-d);font-size:0.85rem;text-align:left;padding:0;">
+          {{ doc.nombre_original }}
+        </button>
+        {% else %}
         <a href="{{ url_for('descargar_documento', aid=alumno.id, did=doc.id) }}"
-           target="_blank" style="font-size:0.85rem;color:var(--azul-d);text-decoration:none;">
+           style="font-size:0.85rem;color:var(--azul-d);text-decoration:none;">
           {{ doc.nombre_original }}
         </a>
-        <span style="font-size:0.72rem;color:var(--gris-t);margin-left:0.5rem;">{{ doc.creado_en[:10] }}</span>
+        {% endif %}
+        <span style="font-size:0.72rem;color:var(--gris-t);white-space:nowrap;">{{ doc.creado_en[:10] }}</span>
       </div>
-      <form method="POST" action="{{ url_for('eliminar_documento', aid=alumno.id, did=doc.id) }}"
-            style="display:inline;" onsubmit="return confirm('¿Eliminar este documento?')">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <button type="submit" style="background:none;border:none;cursor:pointer;color:var(--rojo);font-size:0.85rem;"
-                title="Eliminar">✕</button>
-      </form>
+      <div style="display:flex;gap:0.4rem;align-items:center;flex-shrink:0;">
+        <a href="{{ url_for('descargar_documento', aid=alumno.id, did=doc.id) }}"
+           title="Descargar" style="color:var(--azul);font-size:0.8rem;text-decoration:none;">⬇</a>
+        <form method="POST" action="{{ url_for('eliminar_documento', aid=alumno.id, did=doc.id) }}"
+              style="display:inline;" onsubmit="return confirm('¿Eliminar este documento?')">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button type="submit" style="background:none;border:none;cursor:pointer;color:var(--rojo);font-size:0.85rem;"
+                  title="Eliminar">✕</button>
+        </form>
+      </div>
     </div>
     {% endfor %}
   </div>
@@ -251,13 +265,26 @@
   <p style="font-size:0.83rem;color:var(--gris-t);margin-bottom:1rem;">Sin documentos adjuntos.</p>
   {% endif %}
 
+  <!-- Modal vista previa -->
+  <div id="modal-preview" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:999;align-items:center;justify-content:center;padding:1rem;">
+    <div style="background:white;border-radius:12px;width:100%;max-width:860px;max-height:90vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 8px 40px rgba(0,0,0,0.3);">
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:0.8rem 1.2rem;border-bottom:1px solid var(--gris-l);">
+        <span id="preview-nombre" style="font-weight:500;font-size:0.9rem;color:var(--azul-d);"></span>
+        <button onclick="cerrarPreview()" style="background:none;border:none;cursor:pointer;font-size:1.3rem;color:var(--gris-t);">✕</button>
+      </div>
+      <div id="preview-body" style="flex:1;overflow:auto;display:flex;align-items:center;justify-content:center;padding:1rem;min-height:300px;background:var(--gris-f);">
+      </div>
+    </div>
+  </div>
+
   <!-- Formulario de subida -->
-  <form method="POST" action="{{ url_for('subir_documento', aid=alumno.id) }}"
-        enctype="multipart/form-data"
-        class="doc-upload-row" style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:flex-end;">
+  <form id="form-doc" method="POST" action="{{ url_for('subir_documento', aid=alumno.id) }}"
+        enctype="multipart/form-data">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <div>
-      <label style="font-size:0.78rem;text-transform:uppercase;letter-spacing:0.04em;color:var(--azul-d);display:block;margin-bottom:0.3rem;">Tipo</label>
+
+    <!-- Selector de tipo -->
+    <div style="margin-bottom:0.75rem;">
+      <label style="font-size:0.78rem;text-transform:uppercase;letter-spacing:0.04em;color:var(--azul-d);display:block;margin-bottom:0.3rem;">Tipo de documento</label>
       <select name="tipo" style="padding:0.5rem 0.8rem;border:1.5px solid var(--gris-l);border-radius:8px;font-size:0.88rem;">
         <option value="dni">DNI/NIE</option>
         <option value="darde">DARDE</option>
@@ -265,13 +292,46 @@
         <option value="otro">Otro</option>
       </select>
     </div>
-    <div style="flex:1;min-width:200px;">
-      <label style="font-size:0.78rem;text-transform:uppercase;letter-spacing:0.04em;color:var(--azul-d);display:block;margin-bottom:0.3rem;">Archivo (PDF, JPG, PNG)</label>
-      <input type="file" name="archivo" accept=".pdf,.jpg,.jpeg,.png,.webp" required
-             style="padding:0.45rem 0.6rem;border:1.5px solid var(--gris-l);border-radius:8px;font-size:0.85rem;width:100%;">
+
+    <!-- Dos botones: galería/archivo y cámara -->
+    <div style="display:flex;gap:0.6rem;flex-wrap:wrap;align-items:center;">
+
+      <!-- Input archivo: label actúa como botón (interacción directa, no JS) -->
+      <input type="file" id="input-archivo" name="archivo"
+             accept=".pdf,.jpg,.jpeg,.png,.webp" style="display:none;"
+             onchange="onArchivoSeleccionado(this)">
+
+      <!-- Input cámara: capture="environment" abre cámara trasera en móvil -->
+      <input type="file" id="input-camara" name="archivo"
+             accept="image/*" capture="environment" style="display:none;"
+             onchange="onArchivoSeleccionado(this)">
+
+      <label for="input-archivo" class="btn btn-outline btn-sm" style="cursor:pointer;margin:0;">
+        📎 Adjuntar archivo
+      </label>
+
+      <label for="input-camara" class="btn btn-outline btn-sm"
+             style="cursor:pointer;margin:0;border-color:var(--dorado);color:var(--dorado);">
+        📷 Hacer foto
+      </label>
+
+      <span id="doc-nombre" style="font-size:0.8rem;color:var(--gris-t);"></span>
     </div>
-    <button type="submit" class="btn btn-primary btn-sm">Subir</button>
   </form>
+
+  <script>
+  // Mostrar nombre del archivo seleccionado antes de enviar
+  function onArchivoSeleccionado(input) {
+    if (!input.files[0]) return;
+    // Mostrar nombre del archivo
+    document.getElementById('doc-nombre').textContent = input.files[0].name;
+    // Limpiar el otro input para que solo uno tenga archivo activo
+    const otro = input.id === 'input-archivo' ? 'input-camara' : 'input-archivo';
+    document.getElementById(otro).value = '';
+    // Enviar el formulario automáticamente
+    input.form.submit();
+  }
+  </script>
 </div>
 
 <!-- NOTAS INTERNAS -->
@@ -311,6 +371,25 @@
 
 <script>
 const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+
+function abrirPreview(url, nombre, tipo) {
+  document.getElementById('preview-nombre').textContent = nombre;
+  const body = document.getElementById('preview-body');
+  if (tipo === 'imagen') {
+    body.innerHTML = `<img src="${url}" style="max-width:100%;max-height:70vh;border-radius:6px;box-shadow:0 2px 12px rgba(0,0,0,0.15);">`;
+  } else {
+    body.innerHTML = `<iframe src="${url}" style="width:100%;height:70vh;border:none;border-radius:6px;"></iframe>`;
+  }
+  document.getElementById('modal-preview').style.display = 'flex';
+}
+function cerrarPreview() {
+  document.getElementById('modal-preview').style.display = 'none';
+  document.getElementById('preview-body').innerHTML = '';
+}
+document.getElementById('modal-preview').addEventListener('click', function(e) {
+  if (e.target === this) cerrarPreview();
+});
+
 async function cambiarEstado(estado) {
   const res = await fetch('/alumno/{{ alumno.id }}/estado', {
     method: 'POST',

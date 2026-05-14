@@ -1,4 +1,6 @@
-import os, csv, io, json, base64, urllib.request, re, smtplib, mimetypes
+import os, csv, io, json, base64, urllib.request, re, smtplib, mimetypes, requests, secrets
+from typing import Optional
+from datetime import datetime, timedelta, timezone
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from functools import wraps
@@ -19,6 +21,7 @@ app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', os.urandom(32))
 app.config['WTF_CSRF_ENABLED'] = True
 csrf = CSRFProtect(app)
+app.jinja_env.filters['from_json'] = json.loads
 
 DB           = os.environ.get('DB_PATH', 'seleccion.db')
 OLLAMA_URL   = os.environ.get('OLLAMA_URL', 'http://localhost:11434/api/generate')
@@ -120,6 +123,14 @@ def init_db():
             accion TEXT NOT NULL,
             detalle TEXT,
             creado_en TEXT DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE TABLE IF NOT EXISTS inscripciones_pendientes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            token TEXT UNIQUE NOT NULL,
+            curso_id INTEGER NOT NULL,
+            datos TEXT NOT NULL,
+            creado_en TEXT DEFAULT CURRENT_TIMESTAMP,
+            expira_en TEXT NOT NULL
         );
     """)
     for sql in [
@@ -279,12 +290,18 @@ def ver_curso(cid):
     inscripcion_url = request.host_url.rstrip('/') + url_for('inscripcion', cid=cid)
     qr_b64          = _generar_qr(inscripcion_url)
 
+    ahora = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S')
+    pendientes_conf = conn.execute(
+        "SELECT * FROM inscripciones_pendientes WHERE curso_id=? AND expira_en > ? ORDER BY creado_en DESC",
+        (cid, ahora)).fetchall()
+
     return render_template('ver_curso.html',
                            curso=curso, alumnos=alumnos, preguntas=preguntas,
                            stats=stats, plazas_llenas=plazas_llenas,
                            inscripcion_url=inscripcion_url, qr_b64=qr_b64,
                            q=q, estado_filtro=estado,
-                           page=page, total_pags=total_pags, total_rows=total_rows)
+                           page=page, total_pags=total_pags, total_rows=total_rows,
+                           pendientes_conf=pendientes_conf)
 
 
 @app.route('/cursos/<int:cid>/eliminar', methods=['POST'])
@@ -372,7 +389,8 @@ def exportar_csv(cid):
 def toggle_inscripciones(cid):
     conn   = get_db()
     curso  = conn.execute('SELECT inscripciones_abiertas FROM cursos WHERE id=?', (cid,)).fetchone()
-    nuevo  = 0 if (curso['inscripciones_abiertas'] or 1) else 1
+    actual = curso['inscripciones_abiertas'] if curso['inscripciones_abiertas'] is not None else 1
+    nuevo  = 0 if actual else 1
     conn.execute('UPDATE cursos SET inscripciones_abiertas=? WHERE id=?', (nuevo, cid))
     conn.commit()
     return redirect(url_for('ver_curso', cid=cid))
@@ -572,44 +590,107 @@ def inscripcion(cid):
         respuestas = {preg['label']: f.get(f'prueba_{i}', '')
                       for i, preg in enumerate(preguntas)}
 
-        conn.execute("""
-            INSERT INTO alumnos
-              (curso_id,nombre,apellidos,fecha_nacimiento,domicilio,numero,puerta,
-               poblacion,cp,telefono,telefono_emergencias,email,edad,sexo,nacionalidad,
-               dni,seg_social,expediente,fecha_inscripcion_servef,oficina_servef,
-               cobra_prestaciones,situacion_laboral,titulacion,titulacion_especialidad,
-               estudia_actualmente,que_estudia,cursos_fpo,experiencia,desea_realizar,
-               motivacion,tiene_carnet,tiene_vehiculo,razon_interes,razon_motivacion,
-               razon_empleo,razon_impedimentos,razon_limitaciones,observaciones,
-               acepta_compromiso,respuestas_prueba)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-        """, (
-            cid, f.get('nombre', ''), f.get('apellidos', ''),
-            f.get('fecha_nacimiento', ''), f.get('domicilio', ''), f.get('numero', ''),
-            f.get('puerta', ''), f.get('poblacion', ''), f.get('cp', ''),
-            f.get('telefono', ''), f.get('telefono_emergencias', ''), email,
-            f.get('edad', ''), f.get('sexo', ''), f.get('nacionalidad', ''),
-            f.get('dni', ''), f.get('seg_social', ''), f.get('expediente', ''),
-            f.get('fecha_inscripcion_servef', ''), f.get('oficina_servef', ''),
-            f.get('cobra_prestaciones', ''), f.get('situacion_laboral', ''),
-            f.get('titulacion', ''), f.get('titulacion_especialidad', ''),
-            f.get('estudia_actualmente', ''), f.get('que_estudia', ''),
-            json.dumps(fpo, ensure_ascii=False), json.dumps(exp, ensure_ascii=False),
-            f.get('desea_realizar', ''), f.get('motivacion', ''),
-            f.get('tiene_carnet', ''), f.get('tiene_vehiculo', ''),
-            f.get('razon_interes', ''), f.get('razon_motivacion', ''),
-            f.get('razon_empleo', ''), f.get('razon_impedimentos', ''),
-            f.get('razon_limitaciones', ''), f.get('observaciones', ''),
-            f.get('acepta_compromiso', ''),
-            json.dumps(respuestas, ensure_ascii=False)
-        ))
+        # Guardar datos en pendientes hasta que el alumno confirme su email
+        datos = {
+            'curso_id': cid,
+            'nombre': f.get('nombre', ''), 'apellidos': f.get('apellidos', ''),
+            'fecha_nacimiento': f.get('fecha_nacimiento', ''),
+            'domicilio': f.get('domicilio', ''), 'numero': f.get('numero', ''),
+            'puerta': f.get('puerta', ''), 'poblacion': f.get('poblacion', ''),
+            'cp': f.get('cp', ''), 'telefono': f.get('telefono', ''),
+            'telefono_emergencias': f.get('telefono_emergencias', ''),
+            'email': email, 'edad': f.get('edad', ''), 'sexo': f.get('sexo', ''),
+            'nacionalidad': f.get('nacionalidad', ''), 'dni': f.get('dni', ''),
+            'seg_social': f.get('seg_social', ''), 'expediente': '',
+            'fecha_inscripcion_servef': f.get('fecha_inscripcion_servef', ''),
+            'oficina_servef': f.get('oficina_servef', ''),
+            'cobra_prestaciones': f.get('cobra_prestaciones', ''),
+            'situacion_laboral': f.get('situacion_laboral', ''),
+            'titulacion': f.get('titulacion', ''),
+            'titulacion_especialidad': f.get('titulacion_especialidad', ''),
+            'estudia_actualmente': f.get('estudia_actualmente', ''),
+            'que_estudia': f.get('que_estudia', ''),
+            'cursos_fpo': json.dumps(fpo, ensure_ascii=False),
+            'experiencia': json.dumps(exp, ensure_ascii=False),
+            'desea_realizar': f.get('desea_realizar', ''),
+            'motivacion': f.get('motivacion', ''),
+            'tiene_carnet': f.get('tiene_carnet', ''),
+            'tiene_vehiculo': f.get('tiene_vehiculo', ''),
+            'razon_interes': f.get('razon_interes', ''),
+            'razon_motivacion': f.get('razon_motivacion', ''),
+            'razon_empleo': f.get('razon_empleo', ''),
+            'razon_impedimentos': f.get('razon_impedimentos', ''),
+            'razon_limitaciones': f.get('razon_limitaciones', ''),
+            'observaciones': f.get('observaciones', ''),
+            'acepta_compromiso': f.get('acepta_compromiso', ''),
+            'respuestas_prueba': json.dumps(respuestas, ensure_ascii=False),
+        }
+        token    = secrets.token_urlsafe(32)
+        expira   = (datetime.now(timezone.utc) + timedelta(hours=48)).strftime('%Y-%m-%dT%H:%M:%S')
+        conn.execute(
+            'INSERT INTO inscripciones_pendientes (token,curso_id,datos,expira_en) VALUES (?,?,?,?)',
+            (token, cid, json.dumps(datos, ensure_ascii=False), expira))
         conn.commit()
-        _notificar_admin_inscripcion(f.get('nombre', ''), f.get('apellidos', ''),
-                                     curso['nombre'], conn)
-        return render_template('inscripcion_ok.html', curso=curso)
+
+        url_confirmacion = request.host_url.rstrip('/') + url_for('confirmar_inscripcion', token=token)
+        _enviar_email_confirmacion(email, f.get('nombre', ''), curso['nombre'], url_confirmacion)
+        return render_template('inscripcion_pendiente.html', curso=curso, email=email)
 
     return render_template('inscripcion.html', curso=curso, preguntas=preguntas,
                            errors=[], form={})
+
+
+@app.route('/inscripcion/confirmar/<token>')
+def confirmar_inscripcion(token):
+    conn      = get_db()
+    pendiente = conn.execute(
+        'SELECT * FROM inscripciones_pendientes WHERE token=?', (token,)).fetchone()
+
+    if not pendiente:
+        return render_template('inscripcion_token_error.html', motivo='invalido')
+
+    if datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S') > pendiente['expira_en']:
+        conn.execute('DELETE FROM inscripciones_pendientes WHERE token=?', (token,))
+        conn.commit()
+        return render_template('inscripcion_token_error.html', motivo='caducado')
+
+    d    = json.loads(pendiente['datos'])
+    cid  = pendiente['curso_id']
+    curso = conn.execute('SELECT * FROM cursos WHERE id=?', (cid,)).fetchone()
+
+    conn.execute("""
+        INSERT INTO alumnos
+          (curso_id,nombre,apellidos,fecha_nacimiento,domicilio,numero,puerta,
+           poblacion,cp,telefono,telefono_emergencias,email,edad,sexo,nacionalidad,
+           dni,seg_social,expediente,fecha_inscripcion_servef,oficina_servef,
+           cobra_prestaciones,situacion_laboral,titulacion,titulacion_especialidad,
+           estudia_actualmente,que_estudia,cursos_fpo,experiencia,desea_realizar,
+           motivacion,tiene_carnet,tiene_vehiculo,razon_interes,razon_motivacion,
+           razon_empleo,razon_impedimentos,razon_limitaciones,observaciones,
+           acepta_compromiso,respuestas_prueba)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+    """, (
+        cid, d['nombre'], d['apellidos'], d['fecha_nacimiento'],
+        d['domicilio'], d['numero'], d['puerta'], d['poblacion'], d['cp'],
+        d['telefono'], d['telefono_emergencias'], d['email'],
+        d['edad'], d['sexo'], d['nacionalidad'], d['dni'], d['seg_social'], d['expediente'],
+        d['fecha_inscripcion_servef'], d['oficina_servef'],
+        d['cobra_prestaciones'], d['situacion_laboral'],
+        d['titulacion'], d['titulacion_especialidad'],
+        d['estudia_actualmente'], d['que_estudia'],
+        d['cursos_fpo'], d['experiencia'], d['desea_realizar'], d['motivacion'],
+        d['tiene_carnet'], d['tiene_vehiculo'],
+        d['razon_interes'], d['razon_motivacion'], d['razon_empleo'],
+        d['razon_impedimentos'], d['razon_limitaciones'], d['observaciones'],
+        d['acepta_compromiso'], d['respuestas_prueba']
+    ))
+    conn.execute('DELETE FROM inscripciones_pendientes WHERE token=?', (token,))
+    conn.commit()
+
+    _notificar_admin_inscripcion(d['nombre'], d['apellidos'], curso['nombre'] if curso else '', conn)
+    _wa_admin_inscripcion(d['nombre'], d['apellidos'], curso['nombre'] if curso else '')
+
+    return render_template('inscripcion_confirmada.html', curso=curso, nombre=d['nombre'])
 
 
 # ── ALUMNOS ───────────────────────────────────────────────────────────────────
@@ -689,6 +770,8 @@ def cambiar_estado(aid):
                 pass
         _enviar_email_estado(alumno['email'], alumno['nombre'],
                              alumno['curso_nombre'], estado, pos)
+        _wa_estado(alumno['nombre'], alumno['curso_nombre'],
+                   estado, pos, alumno['telefono'] or '')
 
     return jsonify({'ok': True, 'estado': estado, 'aviso': aviso})
 
@@ -824,7 +907,80 @@ def descargar_documento(aid, did):
     ruta = UPLOADS_DIR / str(aid) / doc['nombre_fichero']
     if not ruta.exists():
         abort(404)
-    return send_file(ruta, download_name=doc['nombre_original'], as_attachment=False)
+    return send_file(ruta, download_name=doc['nombre_original'], as_attachment=True)
+
+
+@app.route('/alumno/<int:aid>/documentos/<int:did>/preview')
+@login_required
+def preview_documento(aid, did):
+    conn = get_db()
+    doc  = conn.execute(
+        'SELECT * FROM documentos WHERE id=? AND alumno_id=?', (did, aid)).fetchone()
+    if not doc:
+        abort(404)
+    ruta = UPLOADS_DIR / str(aid) / doc['nombre_fichero']
+    if not ruta.exists():
+        abort(404)
+    mime = mimetypes.guess_type(doc['nombre_original'])[0] or 'application/octet-stream'
+    return send_file(ruta, mimetype=mime, as_attachment=False)
+
+
+@app.route('/inscripcion/pendiente/<int:pid>/reenviar', methods=['POST'])
+@login_required
+@csrf.exempt
+def reenviar_confirmacion(pid):
+    conn      = get_db()
+    pendiente = conn.execute(
+        'SELECT * FROM inscripciones_pendientes WHERE id=?', (pid,)).fetchone()
+    if not pendiente:
+        return jsonify({'error': 'No encontrado'}), 404
+
+    nuevo_token = secrets.token_urlsafe(32)
+    nueva_expira = (datetime.now(timezone.utc) + timedelta(hours=48)).strftime('%Y-%m-%dT%H:%M:%S')
+    conn.execute(
+        'UPDATE inscripciones_pendientes SET token=?, expira_en=? WHERE id=?',
+        (nuevo_token, nueva_expira, pid))
+    conn.commit()
+
+    datos  = json.loads(pendiente['datos'])
+    curso  = conn.execute('SELECT nombre FROM cursos WHERE id=?',
+                          (pendiente['curso_id'],)).fetchone()
+    url    = request.host_url.rstrip('/') + url_for('confirmar_inscripcion', token=nuevo_token)
+    _enviar_email_confirmacion(datos.get('email', ''), datos.get('nombre', ''),
+                               curso['nombre'] if curso else '', url)
+    return jsonify({'ok': True})
+
+
+@app.route('/cursos/<int:cid>/notificar-seleccionados', methods=['POST'])
+@login_required
+@csrf.exempt
+def notificar_seleccionados(cid):
+    conn    = get_db()
+    curso   = conn.execute('SELECT * FROM cursos WHERE id=?', (cid,)).fetchone()
+    if not curso:
+        return jsonify({'error': 'Curso no encontrado'}), 404
+    alumnos = conn.execute(
+        "SELECT * FROM alumnos WHERE curso_id=? AND estado='seleccionado'",
+        (cid,)).fetchall()
+    if not alumnos:
+        return jsonify({'error': 'No hay alumnos seleccionados'}), 400
+
+    enviados = 0
+    for a in alumnos:
+        pos = None
+        if a['analisis_ia']:
+            try:
+                pos = json.loads(a['analisis_ia']).get('posicion')
+            except Exception:
+                pass
+        if a['email']:
+            _enviar_email_estado(a['email'], a['nombre'], curso['nombre'],
+                                 'seleccionado', pos)
+        _wa_estado(a['nombre'], curso['nombre'], 'seleccionado', pos,
+                   a['telefono'] or '')
+        enviados += 1
+
+    return jsonify({'ok': True, 'enviados': enviados})
 
 
 @app.route('/alumno/<int:aid>/documentos/<int:did>/eliminar', methods=['POST'])
@@ -965,6 +1121,63 @@ Responde SOLO con JSON, sin markdown:
 
 # ── HELPERS ───────────────────────────────────────────────────────────────────
 
+def _enviar_email_confirmacion(to: str, nombre: str, curso: str, url: str):
+    """Email de verificación con botón de confirmación."""
+    server   = os.environ.get('MAIL_SERVER', '')
+    port     = int(os.environ.get('MAIL_PORT', 587))
+    username = os.environ.get('MAIL_USERNAME', '')
+    password = os.environ.get('MAIL_PASSWORD', '')
+    from_    = os.environ.get('MAIL_FROM', username)
+    if not server or not username or not password:
+        return
+    html = f"""
+    <div style="font-family:'DM Sans',Arial,sans-serif;max-width:520px;margin:auto;
+                padding:2rem;border:1px solid #e8e8e4;border-radius:12px;color:#1a1a18;">
+      <p style="font-size:0.75rem;text-transform:uppercase;letter-spacing:0.08em;
+                color:#b5a050;font-weight:600;margin-bottom:0.5rem;">
+        TAME Formación · FPO Labora
+      </p>
+      <h2 style="color:#3d5f6e;font-size:1.4rem;margin-bottom:0.5rem;">
+        Confirma tu inscripción
+      </h2>
+      <p style="margin:0.8rem 0;">Hola <strong>{nombre}</strong>,</p>
+      <p style="margin:0.5rem 0;">
+        Has solicitado inscribirte en el curso:<br>
+        <em style="color:#5a7f8f;font-size:1.05rem;">{curso}</em>
+      </p>
+      <p style="margin:1rem 0;color:#666;font-size:0.9rem;">
+        Para completar tu inscripción, confirma que este correo es correcto pulsando el botón:
+      </p>
+      <div style="text-align:center;margin:1.5rem 0;">
+        <a href="{url}" style="display:inline-block;background:#5a7f8f;color:white;
+                                text-decoration:none;padding:0.85rem 2rem;border-radius:8px;
+                                font-weight:600;font-size:1rem;">
+          ✓ Confirmar inscripción
+        </a>
+      </div>
+      <p style="font-size:0.8rem;color:#888;margin-top:1rem;">
+        Este enlace caduca en <strong>48 horas</strong>. Si no has solicitado esta inscripción, ignora este mensaje.
+      </p>
+      <hr style="border:none;border-top:1px solid #e8e8e4;margin:1.5rem 0;">
+      <p style="font-size:0.75rem;color:#aaa;">
+        © TAME Formación · Mislata Formación S.L.
+      </p>
+    </div>
+    """
+    try:
+        msg = MIMEMultipart('alternative')
+        msg['Subject'] = f'[TAME Formación] Confirma tu inscripción – {curso}'
+        msg['From']    = from_
+        msg['To']      = to
+        msg.attach(MIMEText(html, 'html', 'utf-8'))
+        with smtplib.SMTP(server, port, timeout=10) as s:
+            s.starttls()
+            s.login(username, password)
+            s.sendmail(username, to, msg.as_string())
+    except Exception:
+        pass
+
+
 def _log_historial(conn, alumno_id: int, curso_id: int,
                    usuario: str, accion: str, detalle: str):
     conn.execute(
@@ -1055,6 +1268,77 @@ def _enviar_email_estado(to: str, nombre: str, curso: str, estado: str, posicion
             s.sendmail(username, to, msg.as_string())
     except Exception:
         pass  # No interrumpir la app si el email falla
+
+
+def _formatear_telefono_wa(telefono: str) -> Optional[str]:
+    """Convierte un teléfono al formato Green API: 34XXXXXXXXX@c.us"""
+    if not telefono:
+        return None
+    t = re.sub(r'[\s\-\.\(\)]', '', telefono)  # quitar espacios y separadores
+    t = t.lstrip('+')
+    if t.startswith('0034'):
+        t = t[4:]
+    if t.startswith('34') and len(t) == 11:
+        pass  # ya tiene prefijo
+    elif len(t) == 9 and t[0] in ('6', '7', '8', '9'):
+        t = '34' + t
+    else:
+        return None
+    return f'{t}@c.us'
+
+
+def _enviar_whatsapp(chat_id: str, mensaje: str):
+    """Envía un mensaje de WhatsApp vía Green API. Silencia errores."""
+    instance = os.environ.get('GREEN_API_INSTANCE', '')
+    token    = os.environ.get('GREEN_API_TOKEN', '')
+    if not instance or not token or instance == 'tu_instance_id':
+        return
+    try:
+        url = f'https://api.green-api.com/waInstance{instance}/sendMessage/{token}'
+        requests.post(url, json={'chatId': chat_id, 'message': mensaje}, timeout=10)
+    except Exception:
+        pass
+
+
+def _wa_estado(alumno_nombre: str, curso: str, estado: str, posicion=None, telefono: str = '') -> None:
+    """WhatsApp al alumno cuando cambia su estado."""
+    chat_id = _formatear_telefono_wa(telefono)
+    if not chat_id:
+        return
+    etiquetas = {
+        'seleccionado':    '✅ *¡Enhorabuena! Ha sido SELECCIONADO/A*',
+        'reserva':         '⏳ Ha quedado en *lista de RESERVA*',
+        'no_seleccionado': '❌ No ha sido seleccionado/a en esta convocatoria',
+    }
+    encabezado = etiquetas.get(estado, 'Actualización de su solicitud')
+    pos_txt    = f'\n📊 Posición en el ranking: *#{posicion}*' if posicion else ''
+    msg = (
+        f'*TAME Formación · FPO Labora*\n\n'
+        f'Estimado/a {alumno_nombre},\n\n'
+        f'{encabezado}\n'
+        f'📚 Curso: _{curso}_{pos_txt}\n\n'
+        f'El equipo de TAME Formación se pondrá en contacto con usted si necesita más información.\n\n'
+        f'_Mislata Formación S.L._'
+    )
+    _enviar_whatsapp(chat_id, msg)
+
+
+def _wa_admin_inscripcion(nombre: str, apellidos: str, curso: str) -> None:
+    """WhatsApp a los admins cuando llega una nueva inscripción."""
+    phones_raw = os.environ.get('ADMIN_WHATSAPP_PHONES', '')
+    if not phones_raw:
+        return
+    msg = (
+        f'*TAME Formación · Nueva inscripción* 📋\n\n'
+        f'*{nombre} {apellidos}* se ha inscrito en:\n'
+        f'📚 _{curso}_\n\n'
+        f'Accede al panel para revisar su solicitud.'
+    )
+    for phone in phones_raw.split(','):
+        phone = phone.strip()
+        if phone:
+            chat_id = phone if '@' in phone else f'{phone}@c.us'
+            _enviar_whatsapp(chat_id, msg)
 
 
 def _parse_json_robusto(text: str) -> dict:
