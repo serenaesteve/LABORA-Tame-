@@ -22,51 +22,70 @@
   }
 </style>
 
-<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:2rem;flex-wrap:wrap;gap:1rem;">
-  <div>
-    <a href="{{ url_for('dashboard') }}" class="btn btn-outline btn-sm" style="margin-bottom:1rem;">← Dashboard</a>
-    <div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--dorado);font-weight:600;">{{ curso.codigo or 'FPO' }}</div>
-    <h1 class="page-title" style="margin-bottom:0.3rem;">{{ curso.nombre }}</h1>
-    {% if curso.fecha_inicio %}
-    <p style="color:var(--gris-t);font-size:0.85rem;">📅 {{ curso.fecha_inicio }}{% if curso.fecha_fin %} → {{ curso.fecha_fin }}{% endif %} · {{ curso.plazas }} plazas</p>
-    {% endif %}
-  </div>
-  <div class="curso-acciones" style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center;">
-    <a href="{{ url_for('exportar_excel', cid=curso.id) }}" class="btn btn-outline btn-sm">⬇ Excel</a>
-    <a href="{{ url_for('exportar_csv', cid=curso.id) }}" class="btn btn-outline btn-sm">⬇ CSV</a>
-    <button class="btn btn-outline btn-sm" onclick="document.getElementById('modal-qr').style.display='flex'">📲 QR</button>
-    <form method="POST" action="{{ url_for('toggle_inscripciones', cid=curso.id) }}" style="display:inline;">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      {% if (curso.inscripciones_abiertas is none) or curso.inscripciones_abiertas %}
-      <button class="btn btn-outline btn-sm" style="border-color:var(--verde);color:var(--verde);" title="Las inscripciones están abiertas. Pulsa para cerrarlas.">🟢 Abiertas</button>
-      {% else %}
-      <button class="btn btn-outline btn-sm" style="border-color:var(--rojo);color:var(--rojo);" title="Las inscripciones están cerradas. Pulsa para abrirlas.">🔴 Cerradas</button>
+<!-- CABECERA HERO CURSO -->
+<div style="background:var(--grad-hero);border-radius:20px;padding:2rem 2.5rem;margin-bottom:2rem;position:relative;overflow:hidden;box-shadow:var(--shadow-lg);">
+  <div style="position:absolute;top:-40px;right:-40px;width:200px;height:200px;border-radius:50%;background:radial-gradient(circle,rgba(181,160,80,0.18) 0%,transparent 70%);pointer-events:none;"></div>
+  <a href="{{ url_for('dashboard') }}" style="display:inline-flex;align-items:center;gap:0.4rem;color:rgba(255,255,255,0.65);font-size:0.8rem;text-decoration:none;margin-bottom:1rem;transition:color 0.2s;" onmouseover="this.style.color='white'" onmouseout="this.style.color='rgba(255,255,255,0.65)'">← Dashboard</a>
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:1rem;">
+    <div>
+      <div style="font-size:0.68rem;text-transform:uppercase;letter-spacing:0.12em;color:rgba(212,188,106,0.9);font-weight:700;margin-bottom:0.3rem;">{{ curso.codigo or 'FPO' }}</div>
+      <h1 style="font-family:'Cormorant Garamond',serif;font-size:2.2rem;font-weight:600;color:white;line-height:1.15;margin-bottom:0.4rem;">{{ curso.nombre }}</h1>
+      {% if curso.fecha_inicio %}
+      <p style="color:rgba(255,255,255,0.6);font-size:0.84rem;">📅 {{ curso.fecha_inicio }}{% if curso.fecha_fin %} → {{ curso.fecha_fin }}{% endif %} &nbsp;·&nbsp; {{ curso.plazas }} plazas</p>
       {% endif %}
-    </form>
-    <button class="btn btn-gold btn-sm" onclick="lanzarIA()" id="btn-ia">✦ Análisis IA</button>
+    </div>
+    <div class="curso-acciones" style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:flex-start;">
+      <a href="{{ url_for('exportar_excel', cid=curso.id) }}" class="btn btn-sm" style="background:rgba(255,255,255,0.15);color:white;backdrop-filter:blur(4px);border:1px solid rgba(255,255,255,0.25);">⬇ Excel</a>
+      <a href="{{ url_for('exportar_csv', cid=curso.id) }}" class="btn btn-sm" style="background:rgba(255,255,255,0.15);color:white;backdrop-filter:blur(4px);border:1px solid rgba(255,255,255,0.25);">⬇ CSV</a>
+      <button class="btn btn-sm" style="background:rgba(255,255,255,0.15);color:white;backdrop-filter:blur(4px);border:1px solid rgba(255,255,255,0.25);" onclick="document.getElementById('modal-qr').style.display='flex'">📲 QR</button>
+      <form method="POST" action="{{ url_for('toggle_inscripciones', cid=curso.id) }}" style="display:inline;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        {% if (curso.inscripciones_abiertas is none) or curso.inscripciones_abiertas %}
+        <button class="btn btn-sm" style="background:rgba(74,124,89,0.8);color:white;border:1px solid rgba(255,255,255,0.25);">🟢 Abiertas</button>
+        {% else %}
+        <button class="btn btn-sm" style="background:rgba(154,53,53,0.8);color:white;border:1px solid rgba(255,255,255,0.25);">🔴 Cerradas</button>
+        {% endif %}
+      </form>
+      <button class="btn btn-gold btn-sm" onclick="lanzarIA()" id="btn-ia" style="box-shadow:0 4px 16px rgba(181,160,80,0.5);">✦ Análisis IA</button>
+    </div>
   </div>
 </div>
 
-<!-- Aviso plazas llenas -->
+<!-- Alertas -->
 {% if plazas_llenas %}
-<div class="alert alert-success" style="margin-bottom:1.5rem;">
-  ✓ Las {{ curso.plazas }} plazas están cubiertas con candidatos seleccionados.
-</div>
+<div class="alert alert-success">✓ Las {{ curso.plazas }} plazas están cubiertas con candidatos seleccionados.</div>
 {% endif %}
-
 {% if (curso.inscripciones_abiertas is not none) and not curso.inscripciones_abiertas %}
-<div class="alert" style="background:#faeaea;color:var(--rojo);border:1px solid #e8b8b8;margin-bottom:1.5rem;">
-  🔴 El formulario de inscripción está <strong>cerrado</strong>. Los alumnos verán un mensaje de "Plazo cerrado".
-</div>
+<div class="alert alert-error">🔴 El formulario de inscripción está <strong>cerrado</strong>. Los alumnos verán un mensaje de "Plazo cerrado".</div>
 {% endif %}
 
-<!-- Stats -->
+<!-- Stats mejoradas -->
 <div class="stats-row">
-  <div class="stat-box"><div class="stat-num">{{ stats.total or 0 }}</div><div class="stat-label">Total inscritos</div></div>
-  <div class="stat-box" style="border-top:3px solid var(--verde);"><div class="stat-num" style="color:var(--verde);">{{ stats.seleccionados or 0 }}</div><div class="stat-label">Seleccionados / {{ curso.plazas }}</div></div>
-  <div class="stat-box" style="border-top:3px solid var(--naranja);"><div class="stat-num" style="color:var(--naranja);">{{ stats.reservas or 0 }}</div><div class="stat-label">Reserva</div></div>
-  <div class="stat-box" style="border-top:3px solid var(--gris-t);"><div class="stat-num" style="color:var(--gris-t);">{{ stats.pendientes or 0 }}</div><div class="stat-label">Pendientes</div></div>
-  <div class="stat-box" style="border-top:3px solid var(--rojo);"><div class="stat-num" style="color:var(--rojo);">{{ stats.no_sel or 0 }}</div><div class="stat-label">No sel.</div></div>
+  <div class="stat-box" style="border-top:none;border-left:4px solid var(--azul);">
+    <div style="font-size:1.4rem;margin-bottom:0.2rem;">📋</div>
+    <div class="stat-num">{{ stats.total or 0 }}</div>
+    <div class="stat-label">Total inscritos</div>
+  </div>
+  <div class="stat-box" style="border-top:none;border-left:4px solid var(--verde);">
+    <div style="font-size:1.4rem;margin-bottom:0.2rem;">✓</div>
+    <div class="stat-num" style="color:var(--verde);">{{ stats.seleccionados or 0 }}<span style="font-size:1rem;color:var(--gris-t);font-family:'DM Sans',sans-serif;font-weight:400;">/{{ curso.plazas }}</span></div>
+    <div class="stat-label">Seleccionados</div>
+  </div>
+  <div class="stat-box" style="border-top:none;border-left:4px solid var(--naranja);">
+    <div style="font-size:1.4rem;margin-bottom:0.2rem;">⟳</div>
+    <div class="stat-num" style="color:var(--naranja);">{{ stats.reservas or 0 }}</div>
+    <div class="stat-label">Reserva</div>
+  </div>
+  <div class="stat-box" style="border-top:none;border-left:4px solid var(--gris-t);">
+    <div style="font-size:1.4rem;margin-bottom:0.2rem;">○</div>
+    <div class="stat-num" style="color:var(--gris-t);">{{ stats.pendientes or 0 }}</div>
+    <div class="stat-label">Pendientes</div>
+  </div>
+  <div class="stat-box" style="border-top:none;border-left:4px solid var(--rojo);">
+    <div style="font-size:1.4rem;margin-bottom:0.2rem;">✗</div>
+    <div class="stat-num" style="color:var(--rojo);">{{ stats.no_sel or 0 }}</div>
+    <div class="stat-label">No sel.</div>
+  </div>
 </div>
 
 <!-- Notificaciones IA -->

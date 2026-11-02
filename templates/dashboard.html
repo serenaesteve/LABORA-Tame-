@@ -2,98 +2,254 @@
 {% block title %}Dashboard – TAME Selección FPO{% endblock %}
 {% block content %}
 <style>
-  /* Dashboard: tarjetas mínimo más pequeño en móvil */
+  /* HERO */
+  .hero {
+    background: var(--grad-hero);
+    border-radius: 20px;
+    padding: 2.2rem 2.5rem;
+    margin-bottom: 2rem;
+    position: relative;
+    overflow: hidden;
+    box-shadow: var(--shadow-lg);
+  }
+  .hero::before {
+    content: '';
+    position: absolute; top: -60px; right: -60px;
+    width: 280px; height: 280px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(181,160,80,0.2) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .hero::after {
+    content: '';
+    position: absolute; bottom: -80px; left: -40px;
+    width: 220px; height: 220px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(255,255,255,0.05) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .hero-label {
+    font-size: 0.72rem; text-transform: uppercase;
+    letter-spacing: 0.12em; color: rgba(212,188,106,0.9);
+    font-weight: 600; margin-bottom: 0.4rem;
+  }
+  .hero h1 {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 2.4rem; font-weight: 300; color: white;
+    line-height: 1.15; margin-bottom: 0.4rem;
+  }
+  .hero h1 strong { font-weight: 600; }
+  .hero p { color: rgba(255,255,255,0.65); font-size: 0.88rem; }
+
+  /* TABS */
+  .tabs-nav {
+    display: flex; gap: 0; margin-bottom: 1.8rem;
+    background: white; border-radius: 12px; padding: 0.3rem;
+    box-shadow: var(--shadow-sm); width: fit-content;
+    border: 1px solid var(--gris-l);
+  }
+  .tabs-nav a {
+    padding: 0.5rem 1.4rem; font-size: 0.84rem; font-weight: 500;
+    border-radius: 9px; text-decoration: none; color: var(--gris-t);
+    transition: all 0.18s;
+  }
+  .tabs-nav a.active {
+    background: var(--grad-hero); color: white;
+    box-shadow: var(--shadow-azul);
+  }
+  .tabs-nav a:not(.active):hover { color: var(--azul-d); background: var(--gris-f); }
+
+  /* CURSO CARDS */
+  .cursos-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(310px, 1fr));
+    gap: 1.5rem;
+  }
+  .curso-card {
+    background: white; border-radius: 18px;
+    border: 1px solid var(--gris-l);
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+    transition: transform 0.25s, box-shadow 0.25s;
+    position: relative;
+  }
+  .curso-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-lg); }
+  .curso-card-stripe {
+    height: 5px;
+    background: var(--grad-hero);
+  }
+  .curso-card-body { padding: 1.5rem; }
+  .curso-codigo {
+    font-size: 0.68rem; text-transform: uppercase;
+    letter-spacing: 0.1em; color: var(--dorado); font-weight: 700;
+    margin-bottom: 0.3rem;
+  }
+  .curso-nombre {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 1.35rem; font-weight: 600; color: var(--azul-d);
+    line-height: 1.25; margin-bottom: 0.8rem;
+  }
+  .curso-meta {
+    font-size: 0.78rem; color: var(--gris-t);
+    margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;
+  }
+  .curso-count {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 2.8rem; font-weight: 600; color: var(--azul-d);
+    line-height: 1; position: absolute; top: 1.5rem; right: 1.5rem;
+    opacity: 0.12;
+  }
+
+  /* Barra de progreso plazas */
+  .plazas-bar {
+    margin-bottom: 1.1rem;
+  }
+  .plazas-bar-label {
+    display: flex; justify-content: space-between;
+    font-size: 0.72rem; color: var(--gris-t); margin-bottom: 0.3rem;
+    font-weight: 500;
+  }
+  .plazas-bar-track {
+    height: 6px; background: var(--gris-l); border-radius: 10px; overflow: hidden;
+  }
+  .plazas-bar-fill {
+    height: 100%; border-radius: 10px;
+    background: var(--grad-hero);
+    transition: width 0.6s ease;
+  }
+  .plazas-bar-fill.llena { background: linear-gradient(90deg, var(--verde), #5a9c6e); }
+
+  /* Badges inline */
+  .curso-estados {
+    display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 1.2rem;
+  }
+
+  /* Acciones */
+  .curso-actions {
+    display: flex; gap: 0.4rem; flex-wrap: wrap;
+    padding-top: 1rem;
+    border-top: 1px solid var(--gris-l);
+  }
+
+  /* Empty state */
+  .empty-state {
+    text-align: center; padding: 4rem 2rem;
+    background: white; border-radius: 18px;
+    border: 2px dashed var(--gris-l);
+  }
+  .empty-state .empty-icon {
+    font-size: 3rem; margin-bottom: 1rem; opacity: 0.4;
+  }
+  .empty-state h3 {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 1.5rem; color: var(--gris-t); margin-bottom: 0.5rem;
+  }
+
   @media (max-width: 640px) {
-    .cursos-grid { grid-template-columns: 1fr !important; }
-    .dash-header { flex-direction: column; align-items: flex-start !important; }
-    .tabs-nav a { padding: 0.45rem 0.9rem; font-size: 0.8rem; }
+    .hero { padding: 1.5rem; border-radius: 14px; }
+    .hero h1 { font-size: 1.8rem; }
+    .cursos-grid { grid-template-columns: 1fr; }
+    .tabs-nav { width: 100%; }
+    .tabs-nav a { flex: 1; text-align: center; }
   }
 </style>
-<div class="dash-header" style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:1.5rem;flex-wrap:wrap;gap:1rem;">
-  <div>
-    <h1 class="page-title">Selección de Alumnos FPO</h1>
-    <p style="color:var(--gris-t);font-size:0.9rem;">Cursos subvencionados por Labora · TAME Formación Mislata</p>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-label">Panel de selección · FPO Labora</div>
+  <h1>Bienvenido, <strong>{{ session.user_nombre.split()[0] }}</strong></h1>
+  <p>TAME Formación · Mislata Formación S.L.</p>
+  <div style="position:absolute;top:1.5rem;right:2rem;">
+    <a href="{{ url_for('nuevo_curso') }}" class="btn btn-gold">+ Nuevo curso</a>
   </div>
-  <a href="{{ url_for('nuevo_curso') }}" class="btn btn-gold">+ Nuevo curso</a>
 </div>
 
-<!-- Tabs activos / archivados -->
-<div class="tabs-nav" style="display:flex;gap:0.25rem;margin-bottom:1.5rem;border-bottom:2px solid var(--gris-l);padding-bottom:0;">
-  <a href="{{ url_for('dashboard', tab='activos') }}"
-     style="padding:0.5rem 1.2rem;text-decoration:none;font-size:0.85rem;font-weight:500;border-radius:8px 8px 0 0;
-            {% if tab=='activos' %}background:var(--azul);color:white;{% else %}color:var(--gris-t);{% endif %}">
+<!-- TABS -->
+<div class="tabs-nav">
+  <a href="{{ url_for('dashboard', tab='activos') }}" class="{{ 'active' if tab=='activos' }}">
     Activos
   </a>
-  <a href="{{ url_for('dashboard', tab='archivados') }}"
-     style="padding:0.5rem 1.2rem;text-decoration:none;font-size:0.85rem;font-weight:500;border-radius:8px 8px 0 0;
-            {% if tab=='archivados' %}background:var(--azul);color:white;{% else %}color:var(--gris-t);{% endif %}">
+  <a href="{{ url_for('dashboard', tab='archivados') }}" class="{{ 'active' if tab=='archivados' }}">
     Archivados
   </a>
 </div>
 
 {% if not cursos %}
-<div class="card" style="text-align:center;padding:3rem;">
-  <p style="font-family:'Cormorant Garamond',serif;font-size:1.3rem;color:var(--gris-t);">
-    {% if tab=='archivados' %}No hay cursos archivados.{% else %}No hay cursos todavía.{% endif %}
-  </p>
+<div class="empty-state">
+  <div class="empty-icon">📋</div>
+  <h3>{% if tab=='archivados' %}No hay cursos archivados{% else %}No hay cursos todavía{% endif %}</h3>
   {% if tab=='activos' %}
-  <a href="{{ url_for('nuevo_curso') }}" class="btn btn-primary" style="margin-top:1rem;">Crear el primer curso</a>
+  <p style="color:var(--gris-t);font-size:0.88rem;margin-bottom:1.5rem;">Crea tu primer curso para empezar a recibir inscripciones.</p>
+  <a href="{{ url_for('nuevo_curso') }}" class="btn btn-primary">Crear primer curso</a>
   {% endif %}
 </div>
 {% else %}
-<div class="cursos-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:1.5rem;">
+<div class="cursos-grid">
   {% for c in cursos %}
-  <div class="card" style="position:relative;">
-    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1rem;">
-      <div>
-        <div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--dorado);font-weight:600;margin-bottom:0.2rem;">{{ c.codigo or 'FPO' }}</div>
-        <h2 style="font-family:'Cormorant Garamond',serif;font-size:1.3rem;color:var(--azul-d);">{{ c.nombre }}</h2>
+  {% set pct = ((c.seleccionados or 0) / (c.plazas or 1) * 100) | round | int %}
+  {% set llena = (c.seleccionados or 0) >= (c.plazas or 0) and (c.total or 0) > 0 %}
+  <div class="curso-card">
+    <div class="curso-card-stripe" {% if llena %}style="background:linear-gradient(90deg,var(--verde),#5a9c6e);"{% endif %}></div>
+    <div class="curso-card-body">
+      <div class="curso-count">{{ c.total or 0 }}</div>
+      <div class="curso-codigo">{{ c.codigo or 'FPO' }}</div>
+      <div class="curso-nombre">{{ c.nombre }}</div>
+      {% if c.fecha_inicio %}
+      <div class="curso-meta">
+        <span>📅 {{ c.fecha_inicio }}{% if c.fecha_fin %} → {{ c.fecha_fin }}{% endif %}</span>
+        <span>·</span>
+        <span>{{ c.plazas }} plazas</span>
       </div>
-      <span style="font-size:1.6rem;font-family:'Cormorant Garamond',serif;font-weight:700;color:var(--azul-d);">{{ c.total }}</span>
-    </div>
-    {% if c.fecha_inicio %}
-    <div style="font-size:0.8rem;color:var(--gris-t);margin-bottom:1rem;">
-      📅 {{ c.fecha_inicio }} {% if c.fecha_fin %}→ {{ c.fecha_fin }}{% endif %}
-      &nbsp;·&nbsp; {{ c.plazas }} plazas
-    </div>
-    {% endif %}
-    <!-- Aviso plazas llenas -->
-    {% if (c.seleccionados or 0) >= (c.plazas or 0) and (c.total or 0) > 0 %}
-    <div style="font-size:0.75rem;color:var(--verde);font-weight:600;margin-bottom:0.7rem;">✓ Plazas cubiertas</div>
-    {% endif %}
-    <div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:1.2rem;">
-      {% if c.seleccionados %}<span class="badge badge-seleccionado">✓ {{ c.seleccionados }} sel.</span>{% endif %}
-      {% if c.reservas %}<span class="badge badge-reserva">⟳ {{ c.reservas }} res.</span>{% endif %}
-      {% if c.pendientes %}<span class="badge badge-pendiente">○ {{ c.pendientes }} pend.</span>{% endif %}
-      {% if c.no_seleccionados %}<span class="badge badge-no_seleccionado">✗ {{ c.no_seleccionados }} no sel.</span>{% endif %}
-    </div>
-    <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
-      {% if tab == 'activos' %}
-        <a href="{{ url_for('ver_curso', cid=c.id) }}" class="btn btn-primary btn-sm">Ver alumnos</a>
-        <a href="{{ url_for('inscripcion', cid=c.id) }}" class="btn btn-outline btn-sm" target="_blank">Formulario</a>
-        <form method="POST" action="{{ url_for('duplicar_curso', cid=c.id) }}" style="display:inline;">
-          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <button class="btn btn-outline btn-sm" title="Duplicar curso">⎘</button>
-        </form>
-        <form method="POST" action="{{ url_for('archivar_curso', cid=c.id) }}" style="display:inline;" onsubmit="return confirm('¿Archivar este curso?')">
-          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <button class="btn btn-outline btn-sm" title="Archivar">📁</button>
-        </form>
-        <form method="POST" action="{{ url_for('eliminar_curso', cid=c.id) }}" style="display:inline;" onsubmit="return confirm('¿Eliminar curso y todos sus alumnos?')">
-          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <button class="btn btn-danger btn-sm">Eliminar</button>
-        </form>
-      {% else %}
-        <a href="{{ url_for('ver_curso', cid=c.id) }}" class="btn btn-outline btn-sm">Ver alumnos</a>
-        <form method="POST" action="{{ url_for('restaurar_curso', cid=c.id) }}" style="display:inline;">
-          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <button class="btn btn-primary btn-sm">Restaurar</button>
-        </form>
-        <form method="POST" action="{{ url_for('eliminar_curso', cid=c.id) }}" style="display:inline;" onsubmit="return confirm('¿Eliminar curso y todos sus alumnos?')">
-          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <button class="btn btn-danger btn-sm">Eliminar</button>
-        </form>
       {% endif %}
+
+      <!-- Barra de progreso seleccionados/plazas -->
+      <div class="plazas-bar">
+        <div class="plazas-bar-label">
+          <span>{{ c.seleccionados or 0 }} seleccionados</span>
+          <span>{{ pct }}% ocupado</span>
+        </div>
+        <div class="plazas-bar-track">
+          <div class="plazas-bar-fill {{ 'llena' if llena }}"
+               style="width:{{ [pct,100]|min }}%;"></div>
+        </div>
+      </div>
+
+      <!-- Badges de estado -->
+      <div class="curso-estados">
+        {% if c.seleccionados %}<span class="badge badge-seleccionado">✓ {{ c.seleccionados }} sel.</span>{% endif %}
+        {% if c.reservas %}<span class="badge badge-reserva">⟳ {{ c.reservas }} res.</span>{% endif %}
+        {% if c.pendientes %}<span class="badge badge-pendiente">○ {{ c.pendientes }} pend.</span>{% endif %}
+        {% if c.no_seleccionados %}<span class="badge badge-no_seleccionado">✗ {{ c.no_seleccionados }}</span>{% endif %}
+        {% if llena %}<span class="badge badge-seleccionado" style="font-weight:700;">✓ Plazas cubiertas</span>{% endif %}
+      </div>
+
+      <!-- Acciones -->
+      <div class="curso-actions">
+        {% if tab == 'activos' %}
+          <a href="{{ url_for('ver_curso', cid=c.id) }}" class="btn btn-primary btn-sm">Ver alumnos</a>
+          <a href="{{ url_for('inscripcion', cid=c.id) }}" class="btn btn-outline btn-sm" target="_blank">Formulario</a>
+          <form method="POST" action="{{ url_for('duplicar_curso', cid=c.id) }}" style="display:inline;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="btn btn-outline btn-sm" title="Duplicar curso">⎘</button>
+          </form>
+          <form method="POST" action="{{ url_for('archivar_curso', cid=c.id) }}" style="display:inline;" onsubmit="return confirm('¿Archivar este curso?')">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="btn btn-outline btn-sm" title="Archivar" style="border-color:var(--gris-t);color:var(--gris-t);">📁</button>
+          </form>
+          <form method="POST" action="{{ url_for('eliminar_curso', cid=c.id) }}" style="display:inline;margin-left:auto;" onsubmit="return confirm('¿Eliminar curso y todos sus alumnos?')">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="btn btn-danger btn-sm">Eliminar</button>
+          </form>
+        {% else %}
+          <a href="{{ url_for('ver_curso', cid=c.id) }}" class="btn btn-outline btn-sm">Ver alumnos</a>
+          <form method="POST" action="{{ url_for('restaurar_curso', cid=c.id) }}" style="display:inline;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="btn btn-primary btn-sm">Restaurar</button>
+          </form>
+          <form method="POST" action="{{ url_for('eliminar_curso', cid=c.id) }}" style="display:inline;margin-left:auto;" onsubmit="return confirm('¿Eliminar curso y todos sus alumnos?')">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="btn btn-danger btn-sm">Eliminar</button>
+          </form>
+        {% endif %}
+      </div>
     </div>
   </div>
   {% endfor %}
